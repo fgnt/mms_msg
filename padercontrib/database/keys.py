@@ -20,6 +20,7 @@ NUM_FRAMES = 'num_frames'
 NUM_SPEAKERS = 'num_speakers'
 EXAMPLE_ID = "example_id"  # Replaces mixture ID for multi-speaker scenario.
 SPEAKER_ID = 'speaker_id'
+CHAPTER_ID = 'chapter_id'
 GENDER = 'gender'
 START = 'start'  # start time in a mixture signal for each speaker_id
 END = 'end'  # end time in a mixture signal for each speaker_id
