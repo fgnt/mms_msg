@@ -50,6 +50,7 @@ OBSERVATION = 'observation'
 LAPEL = 'lapel'
 HEADSET = 'headset'
 
+ORIGINAL_SOURCE = 'original_source'
 SPEECH_SOURCE = 'speech_source'
 NOISE = 'noise'
 SPEECH_IMAGE = 'speech_image'
