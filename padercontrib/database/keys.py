@@ -58,6 +58,7 @@ NOISE_IMAGE = 'noise_image'
 LOG_WEIGHTS = 'log_weights'  # Stupid name. Should be e.g. ratio_decibel.
 
 SPEECH_REVERBERATION_DIRECT = 'speech_reverberation_direct'
+SPEECH_REVERBERATION_EARLY = 'speech_reverberation_early'
 SPEECH_REVERBERATION_TAIL = 'speech_reverberation_tail'
 
 SOUND_DECAY_TIME = 'sound_decay_time'  # Also referred to as T60 time.
