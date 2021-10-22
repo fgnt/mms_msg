@@ -24,6 +24,8 @@ CHAPTER_ID = 'chapter_id'
 GENDER = 'gender'
 START = 'start'  # start time in a mixture signal for each speaker_id
 END = 'end'  # end time in a mixture signal for each speaker_id
+OFFSET = 'offset'   # Offset as used in SMS-WSJ database
+SNR = 'snr'     # Noise SNR
 
 # Segmentation refers to a list of tuples
 # [(<label 1>, <start sample>, <end sample>), ...]
