@@ -96,3 +96,6 @@ SENSOR_POSITION = 'sensor_position'
 TRAIN = 'train'
 EVAL = 'eval'
 PREDICT = 'infer'
+
+# For speaker verification (e.g., VoxCeleb)
+TRIALS = 'trials'
