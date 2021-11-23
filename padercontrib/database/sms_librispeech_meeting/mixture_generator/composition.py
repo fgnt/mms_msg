@@ -1,0 +1,238 @@
+import abc
+import dataclasses
+import functools
+import operator
+from dataclasses import dataclass
+from typing import Optional
+
+from cached_property import cached_property
+
+import lazy_dataset
+import paderbox as pb
+from .utils import extend_composition_example_greedy
+from .utils import collate_fn, get_rng
+from lazy_dataset import Dataset
+import numpy as np
+import logging
+
+logger = logging.getLogger('composition')
+
+
+def _get_composition_dataset(
+        input_dataset, composition_sampler, rng,
+        num_speakers,
+):
+    # Cache & sort for reproducibility
+    input_dataset = lazy_dataset.from_dict({
+        ex['example_id']: ex for ex in input_dataset
+    })
+    input_dataset = input_dataset.sort()
+
+    # Infer name from dataset. Make sure that all examples come
+    # from the same dataset (otherwise the dataset name is not unique)
+    name = input_dataset[0]['dataset']
+    assert all([x['dataset'] == name for x in input_dataset])
+
+    # Construct a name and rng from the `rng` parameter
+    if rng is True:
+        return DynamicDataset(composition_sampler, input_dataset, num_speakers)
+    elif rng is False:
+        pass
+    elif isinstance(rng, int):
+        name += f'_rng{rng}'
+    else:
+        raise TypeError(rng)
+    rng = get_rng('composition', name)
+
+    # Sample the composition
+    if isinstance(num_speakers, int):
+        max_speakers = num_speakers
+    else:
+        max_speakers = max(num_speakers)
+
+    composition = composition_sampler(
+        input_dataset=input_dataset, rng=rng,
+        num_speakers=max_speakers
+    )
+
+    # Sample the number of speakers
+    if not isinstance(num_speakers, int):
+        new_composition = []
+        for c in composition:
+            num_speakers_ = rng.choice(num_speakers)
+            new_composition.append(c[:num_speakers_])
+        composition = new_composition
+
+    # Convert the composition to the correct format
+    composition = _composition_list_to_dict(
+        composition, input_dataset, name
+    )
+    return lazy_dataset.new(composition, name=name)
+
+
+def sample_utterance_composition(input_dataset, rng, num_speakers):
+    speaker_ids = [example['speaker_id'] for example in input_dataset]
+
+    # Generate list of example indices for meeting starts
+    composition = None
+    for _ in range(num_speakers):
+        composition = extend_composition_example_greedy(
+            rng, speaker_ids, example_compositions=composition,
+        )
+    logger.debug(f'Generated {len(composition)} speaker '
+                 f'compositions')
+
+    return composition
+
+
+def sample_reduced_utterance_composition(
+        input_dataset, rng, num_speakers, *, reduced_set, repetitions: int = 1
+):
+    if isinstance(reduced_set, str):
+        reduced_set = operator.itemgetter(reduced_set)
+
+    # Group the input dataset and create self.num_repetitions many examples
+    # for each group
+    grouped_dataset = input_dataset.groupby(reduced_set)
+
+    # Make sure that all examples in one group have the same speaker ID
+    for dataset in grouped_dataset.values():
+        if len(set(dataset.map(lambda x: x['speaker_id']))) != 1:
+            raise RuntimeError('Found a group with more than one speaker!')
+
+    speaker_identifier = sorted(grouped_dataset.keys())
+    speaker_identifier = speaker_identifier * repetitions
+
+    # Get the compositions based on the group keys. Specific examples are
+    # later selected from the groups.
+    speaker_ids = [grouped_dataset[identifier][0]['speaker_id']
+                   for identifier in speaker_identifier]
+    speaker_composition = None
+    for _ in range(num_speakers):
+        speaker_composition = extend_composition_example_greedy(
+            rng, speaker_ids, example_compositions=speaker_composition,
+        )
+
+    # Select one random example for each speaker_identifier in each
+    # composition
+    speaker_composition_example_id = []
+    for idx, composition in enumerate(speaker_composition):
+        speaker_ids = [speaker_identifier[c] for c in composition]
+        speaker_composition_example_id.append([
+            grouped_dataset[spk].random_choice(rng_state=rng)['example_id']
+            for spk in speaker_ids
+        ])
+
+    logger.debug(f'Generated {len(speaker_composition)} speaker '
+                 f'compositions')
+
+    return speaker_composition_example_id
+
+
+@dataclass
+class DynamicDataset(Dataset):
+    composition_sampler: callable
+    input_dataset: Dataset
+    num_speakers: int
+
+    def get_new_dataset(self):
+        return _get_composition_dataset(
+            input_dataset=self.input_dataset,
+            composition_sampler=self.composition_sampler,
+            rng=int(np.random.default_rng().integers(2 ** 32)),
+            num_speakers=self.num_speakers,
+        )
+
+    def copy(self, freeze: bool = False) -> 'lazy_dataset.Dataset':
+        if freeze:
+            return self.get_new_dataset()
+        else:
+            return DynamicDataset(
+                self.composition_sampler, self.input_dataset, self.num_speakers,
+            )
+
+    def __iter__(self):
+        return iter(self.get_new_dataset())
+
+    def __len__(self):
+        return len(self.input_dataset)
+
+
+def _composition_list_to_dict(
+        composition: list,
+        input_dataset: Dataset,
+        dataset_name: str,
+) -> dict:
+    base = {}
+    for idx, composition in enumerate(composition):
+        # Combine the sampled examples to one multi-speaker example with a
+        # format similar to SMS-WSJ
+        example = collate_fn([input_dataset[x] for x in composition])
+        example['num_speakers'] = len(example['speaker_id'])
+        example['source_dataset'] = example['dataset']
+
+        # The new dataset name is a combination of the given dataset name and
+        # the dataset name of the base example. This only works if all examples
+        # come from the same source dataset
+        assert pb.utils.misc.all_equal(example['source_dataset']), (
+            'Dataset name is not equal! Implement something new.'
+        )
+        example['dataset'] = dataset_name
+
+        # Move audio_path.observation and num_samples to 'original_source' to
+        # match SMS-WSJ and to make room for additional keys in the audio_path
+        # and num_samples sub-dicts
+        example['audio_path'] = {
+            'original_source': example['audio_path'].pop('observation')
+        }
+        example['num_samples'] = {
+            'original_source': example['num_samples']
+        }
+
+        # Check that there are no duplicate speakers
+        assert pb.utils.misc.all_unique(example['speaker_id']), example['speaker_id']
+
+        # Build an example ID for each example
+        example_id = '_'.join([str(idx), *example['example_id']])
+        assert example_id not in base, (
+            'Duplicate example IDs found! Modify the example ID generation '
+            'code to avoid this!'
+        )
+        example['source_id'] = example['example_id']
+        example['example_id'] = example_id
+
+        base[example_id] = example
+    return base
+
+
+def get_composition_dataset(
+        input_dataset: lazy_dataset.Dataset,
+        num_speakers: int,
+        composition_sampler=sample_utterance_composition,
+        rng: [int, bool] = False,
+):
+    # Cache & sort for reproducibility
+    input_dataset = lazy_dataset.from_dict({
+        ex['example_id']: ex for ex in input_dataset
+    })
+    input_dataset = input_dataset.sort()
+    return _get_composition_dataset(
+        input_dataset, composition_sampler, rng, num_speakers
+    )
+
+
+def get_reduced_composition_dataset(
+        input_dataset: lazy_dataset.Dataset,
+        num_speakers: int,
+        reduced_set: [str, callable],
+        repetitions: int = 1,
+        rng: [int, bool] = False,
+):
+    return get_composition_dataset(
+        input_dataset, num_speakers,
+        functools.partial(
+            sample_reduced_utterance_composition, reduced_set=reduced_set,
+            repetitions=repetitions
+        ),
+        rng
+    )
