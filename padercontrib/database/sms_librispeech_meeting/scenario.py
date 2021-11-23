@@ -3,10 +3,19 @@ from typing import List, Tuple
 import numpy as np
 import paderbox as pb
 from scipy.signal import fftconvolve
-from sms_wsj.database.utils import extract_piece, get_white_noise_for_signal, synchronize_speech_source
+from sms_wsj.database.utils import get_white_noise_for_signal
 from sms_wsj.reverb.reverb_utils import get_rir_start_sample
 
 from .. import keys
+
+from paderbox.array.sparse import SparseArray
+
+
+def synchronize_speech_source_sparse(original_source, offset, T):
+    return [
+        SparseArray.from_array_and_onset(x_, offset_, T)
+        for x_, offset_ in zip(original_source, offset)
+    ]
 
 
 def anechoic_scenario_map_fn(
@@ -14,9 +23,6 @@ def anechoic_scenario_map_fn(
         *,
         snr_range: tuple = (20, 30),
         normalize_sources: bool = True,
-        # This should never be set to False, it is just here for
-        # backwards-compatibility
-        compute_scale_on_padded_signals: bool = False,
 ) -> dict:
     """
     Constructs the observation and scaled speech source signals for `example`
@@ -44,20 +50,20 @@ def anechoic_scenario_map_fn(
     if normalize_sources:
         s = [s_ - np.mean(s_) for s_ in s]
 
-    # Move and pad speech source to the correct position
-    x = [extract_piece(s_, offset_, T) for s_, offset_ in zip(s, offset)]
-    x = np.stack(x)
-
     # Scale the sources by log_weights. We have to determine the scale based on
     # the full signal (its standard deviation) and not just the cut out part
-    if compute_scale_on_padded_signals:
-        scale = get_scale(example[keys.LOG_WEIGHTS], x)
-    else:
-        scale = get_scale(example[keys.LOG_WEIGHTS], s)
-    x *= scale
+    scale = get_scale(example[keys.LOG_WEIGHTS], s)
+    s = [s_ * scale_ for s_, scale_ in zip(s, scale)]
+
+    # Move and pad speech source to the correct position, use sparse array
+    x = [
+        SparseArray.from_array_and_onset(s_, offset_, T)
+        for s_, offset_ in zip(s, offset)
+    ]
 
     # The mix is now simply the sum over the speech sources
-    mix = np.sum(x, axis=0)
+    # mix = np.sum(x, axis=0)
+    mix = sum(x, np.zeros(T, dtype=s[0].dtype))
 
     example[keys.AUDIO_DATA][keys.OBSERVATION] = mix
     example[keys.AUDIO_DATA][keys.SPEECH_IMAGE] = x
@@ -79,6 +85,22 @@ def get_scale(
     Computes the normalized scales for all signals so that multiplying them with
     the scales gives a logarithmic ratio of log_weights.
 
+    Note:
+        We assume that the input signals have roughly the same scaling. We
+        ignore the scaling of the input signals for computing the log_weights to
+        eliminate estimation errors.
+
+        For reference, these are the means of the standard deviations of the
+        WSJ database at 8khz:
+         - `cv_dev93`: 0.004037793712821765
+         - `cv_dev93_5k`: 0.003991357421377814
+         - `test_eval92`: 0.016388209061080895
+         - `test_eval92_5k`: 0.01724772268374945
+         - `test_eval93`: 0.00272367188875606
+         - `test_eval93_5k`: 0.0028981842313541535
+         - `train_si284`: 0.0061338699176127125
+         - `train_si84`: 0.014455413654260894
+
     Args:
         log_weights: Target logarithmic weights
         signals: The signals to scale. They are used for normalization and to
@@ -88,19 +110,14 @@ def get_scale(
         Scale, in the same dimensions as `signals`, but as a numpy array.
     """
     assert len(log_weights) == len(signals), (len(log_weights), len(signals))
-
-    std = np.maximum(np.array(
-        [np.std(s, axis=-1, keepdims=True) for s in signals]
-    ), np.finfo(signals[0].dtype).tiny)
-
     log_weights = np.asarray(log_weights)
 
     # Bring into the correct shape
     log_weights = log_weights.reshape((-1,) + (1,) * signals[0].ndim)
-
-    scale = (10 ** (log_weights / 20)) / std
+    scale = 10 ** (log_weights / 20)
 
     # divide by 71 to ensure that all values are between -1 and 1 (WHY 71?)
+    # TODO: find a good value for both WSJ and LibriSpeech
     scale /= 71
 
     return scale
@@ -119,6 +136,7 @@ def add_microphone_noise(example: dict, snr_range: Tuple[int, int]):
             added.
     """
     if snr_range is not None:
+        # TODO: Handle cut signals, segment offset
         example_id = example[keys.EXAMPLE_ID]
         rng = pb.utils.random_utils.str_to_random_generator(example_id)
         example[keys.SNR] = snr = rng.uniform(*snr_range)
@@ -135,7 +153,7 @@ def multi_channel_scenario_map_fn(
         example,
         *,
         snr_range: tuple = (20, 30),
-        normalize_sources: bool = True,
+        normalize_sources: bool = False,
         sync_speech_source=True,
         add_speech_reverberation_early=True,
         add_speech_reverberation_tail=True,
@@ -143,9 +161,6 @@ def multi_channel_scenario_map_fn(
         details=False,
         channel_slice=None,
         squeeze_channels=True,
-        # This should never be set to False, it is just here for
-        # backwards-compatibility
-        compute_scale_on_padded_signals: bool = False,
 ):
     """
     Modified copy of the scenario_map_fn from sms_wsj.
@@ -182,8 +197,6 @@ def multi_channel_scenario_map_fn(
 
     _, D, rir_length = h.shape
 
-    # TODO: SAMPLE_RATE not defined
-    # rir_stop_sample = rir_start_sample + int(SAMPLE_RATE * 0.05)
     # Use 50 milliseconds as early rir part, excluding the propagation delay
     #    (i.e. "rir_start_sample")
     assert isinstance(early_rir_samples, int), (type(early_rir_samples), early_rir_samples)
@@ -192,13 +205,6 @@ def multi_channel_scenario_map_fn(
     # The two sources have to be cut to same length
     K = len(example[keys.SPEAKER_ID])
     T = example[keys.NUM_SAMPLES][keys.OBSERVATION]
-    if keys.ORIGINAL_SOURCE not in example[keys.AUDIO_DATA]:
-        # legacy code
-        example[keys.AUDIO_DATA][keys.ORIGINAL_SOURCE] = example[keys.AUDIO_DATA][keys.SPEECH_SOURCE]
-    if keys.ORIGINAL_SOURCE not in example[keys.NUM_SAMPLES]:
-        # legacy code
-        example[keys.NUM_SAMPLES][keys.ORIGINAL_SOURCE] = example[keys.NUM_SAMPLES][keys.SPEECH_SOURCE]
-
     s = example[keys.AUDIO_DATA][keys.ORIGINAL_SOURCE]
 
     # In some databases (e.g., WSJ) the utterances are not mean normalized. This
@@ -206,6 +212,10 @@ def multi_channel_scenario_map_fn(
     # We mean-normalize here to eliminate these jumps
     if normalize_sources:
         s = [s_ - np.mean(s_) for s_ in s]
+
+    # Scale s with log_weights before convolution
+    scale = get_scale(example[keys.LOG_WEIGHTS], s)
+    s = [s_ * scale_ for s_, scale_ in zip(s, scale)]
 
     def get_convolved_signals(h):
         assert len(s) == len(h), (len(s), len(h))
@@ -227,32 +237,26 @@ def multi_channel_scenario_map_fn(
         ]
 
         assert len(x) == len(offset)
-        x = [extract_piece(x_, offset_, T) for x_, offset_ in zip(x, offset)]
-        x = np.stack(x, axis=0)
-        assert x.shape == (K, D, T), (x.shape, (K, D, T))
-        # TODO: is this correct?
+        x = [
+            SparseArray.from_array_and_onset(x_, offset_, (D, T))
+            for x_, offset_ in zip(x, offset)
+        ]
+        assert len(x) == K, (len(x), K)
+        assert x[0].shape == (D, T), (x[0].shape, (D, T))
         return x
 
     x = get_convolved_signals(h)
 
-    # Scale the sources by log_weights
-    if compute_scale_on_padded_signals:
-        scale = get_scale(example[keys.LOG_WEIGHTS], x)
-    else:
-        # s is not convolved yet, so we have to add the channel dimension
-        scale = get_scale(example[keys.LOG_WEIGHTS], s)[:, None, :]
-    x *= scale
+    example[keys.AUDIO_DATA][keys.SPEECH_IMAGE] = x
 
-    def _squeeze(signal):
+    def _squeeze(x):
         if squeeze_channels:
             if channel_slice == slice(1):
-                assert signal.shape[1] == 1
-                signal = signal[:, 0, :]
-        return signal
+                assert x[0].shape[0] == 1
+                x = [x_[0] for x_ in x]
+        return x
 
     x = _squeeze(x)
-
-    example[keys.AUDIO_DATA][keys.SPEECH_IMAGE] = x
 
     if add_speech_reverberation_early:
         h_early = h.copy()
@@ -260,7 +264,6 @@ def multi_channel_scenario_map_fn(
         for i in range(h_early.shape[0]):
             h_early[i, ..., rir_stop_sample[i]:] = 0
         x_early = get_convolved_signals(h_early)
-        x_early *= scale
         x_early = _squeeze(x_early)
         example[keys.AUDIO_DATA][keys.SPEECH_REVERBERATION_EARLY] = x_early
 
@@ -272,7 +275,6 @@ def multi_channel_scenario_map_fn(
         for i in range(h_tail.shape[0]):
             h_tail[i, ..., :rir_stop_sample[i]] = 0
         x_tail = get_convolved_signals(h_tail)
-        x_tail *= scale
         x_tail = _squeeze(x_tail)
         example[keys.AUDIO_DATA][keys.SPEECH_REVERBERATION_TAIL] = x_tail
 
@@ -280,17 +282,13 @@ def multi_channel_scenario_map_fn(
             example[keys.AUDIO_DATA][keys.RIR_TAIL] = h_tail
 
     if sync_speech_source:
-        example[keys.AUDIO_DATA][keys.SPEECH_SOURCE] = synchronize_speech_source(
+        example[keys.AUDIO_DATA][keys.SPEECH_SOURCE] = synchronize_speech_source_sparse(
             example[keys.AUDIO_DATA][keys.ORIGINAL_SOURCE],
             offset=example[keys.OFFSET],
             T=T,
         )
-    else:
-        # legacy code
-        example[keys.AUDIO_DATA][keys.SPEECH_SOURCE] = \
-            example[keys.AUDIO_DATA][keys.ORIGINAL_SOURCE]
 
-    clean_mix = np.sum(x, axis=0)
+    clean_mix = sum(x, np.zeros((D, T), dtype=s[0].dtype))
     example[keys.AUDIO_DATA][keys.OBSERVATION] = clean_mix
     add_microphone_noise(example, snr_range)
     return example
