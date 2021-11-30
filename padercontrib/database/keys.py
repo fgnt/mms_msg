@@ -63,6 +63,16 @@ SPEECH_REVERBERATION_DIRECT = 'speech_reverberation_direct'
 SPEECH_REVERBERATION_EARLY = 'speech_reverberation_early'
 SPEECH_REVERBERATION_TAIL = 'speech_reverberation_tail'
 
+ORIGINAL_REVERBERATION_DIRECT = 'original_reverberation_direct'
+ORIGINAL_REVERBERATION_EARLY = 'original_reverberation_early'
+ORIGINAL_REVERBERATION_TAIL = 'original_reverberation_tail'
+ORIGINAL_REVERBERATED = 'original_reverberated'
+
+SPEAKER_SOURCE = 'speaker_source'
+SPEAKER_REVERBEREATION_EARLY = 'speaker_reverberation_early'
+SPEAKER_REVERBEREATION_TAIL = 'speaker_reverberation_tail'
+SPEAKER_IMAGE = 'speaker_image'
+
 SOUND_DECAY_TIME = 'sound_decay_time'  # Also referred to as T60 time.
 RIR = 'rir'
 RIR_DIRECT = 'rir_direct'
