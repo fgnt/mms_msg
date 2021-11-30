@@ -1,3 +1,5 @@
+import itertools
+import operator
 from typing import List, Tuple
 
 import numpy as np
@@ -11,11 +13,17 @@ from .. import keys
 from paderbox.array.sparse import SparseArray
 
 
-def synchronize_speech_source_sparse(original_source, offset, T):
-    return [
-        SparseArray.from_array_and_onset(x_, offset_, T)
+def pad_sparse(original_source, offset, target_shape):
+    padded = [
+        SparseArray.from_array_and_onset(x_, offset_, target_shape)
         for x_, offset_ in zip(original_source, offset)
     ]
+
+    assert len(padded) == len(original_source), (len(padded), len(original_source))
+    for p in padded:
+        assert p.shape == target_shape, (p.shape, target_shape)
+
+    return padded
 
 
 def anechoic_scenario_map_fn(
@@ -34,15 +42,23 @@ def anechoic_scenario_map_fn(
             This is deterministic; the rng is seeded with the example ID
         normalize_sources: If `True`, the source signals are mean-normalized
             before processing
-        compute_scale_on_padded_signals: Whether to compute the scale
-            normalization for the log_weights on the original source signals
-            or on the padded and shifted signals. This option can have a large
-            impact on the overall loudness of the resulting audio.
-            Only set this to `True` if you know what you are doing!
+
+    Returns:
+        Dict with the following structure:
+        ```python
+        {
+            'audio_data': {
+                'observation': ndarray,
+                'speechch_source': [ndarray, ndarray, ...],
+                'speech_source': [ndarray, ndarray, ...],
+                'noise_image': ndarray,
+            }
+        }
+        ```
     """
     T = example[keys.NUM_SAMPLES][keys.OBSERVATION]
     s = example[keys.AUDIO_DATA][keys.ORIGINAL_SOURCE]
-    offset = example[keys.OFFSET]
+    offset = example[keys.OFFSET][keys.ORIGINAL_SOURCE]
 
     # In some databases (e.g., WSJ) the utterances are not mean normalized. This
     # leads to jumps when padding with zeros or concatenating recordings.
@@ -56,20 +72,17 @@ def anechoic_scenario_map_fn(
     s = [s_ * scale_ for s_, scale_ in zip(s, scale)]
 
     # Move and pad speech source to the correct position, use sparse array
-    x = [
-        SparseArray.from_array_and_onset(s_, offset_, T)
-        for s_, offset_ in zip(s, offset)
-    ]
+    speech_source = pad_sparse(s, offset, target_shape=T)
 
     # The mix is now simply the sum over the speech sources
-    # mix = np.sum(x, axis=0)
-    mix = sum(x, np.zeros(T, dtype=s[0].dtype))
+    # mix = np.sum(speech_source, axis=0)
+    mix = sum(speech_source, np.zeros(T, dtype=s[0].dtype))
 
     example[keys.AUDIO_DATA][keys.OBSERVATION] = mix
-    example[keys.AUDIO_DATA][keys.SPEECH_IMAGE] = x
+    example[keys.AUDIO_DATA][keys.SPEECH_SOURCE] = speech_source
 
     # Anechoic case: Speech image == speech source
-    example[keys.AUDIO_DATA][keys.SPEECH_SOURCE] = x
+    example[keys.AUDIO_DATA][keys.SPEECH_IMAGE] = speech_source
 
     # Add noise if snr_range is specified. RNG depends on example ID (
     # deterministic)
@@ -154,7 +167,6 @@ def multi_channel_scenario_map_fn(
         *,
         snr_range: tuple = (20, 30),
         normalize_sources: bool = False,
-        sync_speech_source=True,
         add_speech_reverberation_early=True,
         add_speech_reverberation_tail=True,
         early_rir_samples: int = int(8000 * 0.05),  # 50 milli seconds
@@ -185,9 +197,36 @@ def multi_channel_scenario_map_fn(
             Calculate the speech_reverberation_tail signal.
 
     Returns:
+        Dict with the following structure:
+        ```python
+        {
+            'audio_data': {
+                'observation': array,
+                'speech_source': [SparseArray, ...],
+                'original_source': [array, ...],
+                'speech_image': [SparseArray, ...],
+                'noise_image': array,
 
+                # If add_original_reverberated=True
+                'original_reverberated': [array, ...],
+
+                # If add_speech_reverberation_early==True
+                'speech_reverberation_early: [SparseArray, ...],
+                'original_reverberation_early: [SparseArray, ...],
+
+                # If add_speech_reverberation_tail==True
+                'speech_reverberation_tail: [SparseArray, ...],
+                'original_reverberation_tail': [SparseArray, ...],
+
+                # If add_reverberation_direct==True
+                'original_reverberation_direct': [array, ...],
+                'speech_reverberation_direct': [SparseArray, ...],
+            }
+        }
+        ```
     """
-    h = example[keys.AUDIO_DATA][keys.RIR]  # Shape (K, D, T)
+    audio_data = example[keys.AUDIO_DATA]
+    h = audio_data[keys.RIR]  # Shape (K, D, T)
 
     # Estimate start sample first, to make it independent of channel_mode
     rir_start_sample = np.array([get_rir_start_sample(h_k) for h_k in h])
@@ -202,10 +241,19 @@ def multi_channel_scenario_map_fn(
     assert isinstance(early_rir_samples, int), (type(early_rir_samples), early_rir_samples)
     rir_stop_sample = rir_start_sample + early_rir_samples
 
+    # Compute the shifted offsets that align the convolved signals with the
+    # speech source
+    # This is Jahn's heuristic to be able to still use WSJ alignments.
+    rir_offset = [
+        offset_ - rir_start_sample_
+        for offset_, rir_start_sample_ in zip(
+            example[keys.OFFSET][keys.ORIGINAL_SOURCE], rir_start_sample)
+    ]
+
     # The two sources have to be cut to same length
     K = len(example[keys.SPEAKER_ID])
     T = example[keys.NUM_SAMPLES][keys.OBSERVATION]
-    s = example[keys.AUDIO_DATA][keys.ORIGINAL_SOURCE]
+    s = audio_data[keys.ORIGINAL_SOURCE]
 
     # In some databases (e.g., WSJ) the utterances are not mean normalized. This
     # leads to jumps when padding with zeros or concatenating recordings.
@@ -218,6 +266,9 @@ def multi_channel_scenario_map_fn(
     s = [s_ * scale_ for s_, scale_ in zip(s, scale)]
 
     def get_convolved_signals(h):
+        """Convolve the scaled signals `s` with the RIRs in `h`. Returns
+        the (unpadded) convolved signals with offsets and the padded convolved
+        signals"""
         assert len(s) == len(h), (len(s), len(h))
         x = [
             fftconvolve(s_[..., None, :], h_, axes=-1)
@@ -229,66 +280,56 @@ def multi_channel_scenario_map_fn(
             assert x_.shape == (D, T_ + rir_length - 1), (
                 x_.shape, D, T_ + rir_length - 1)
 
-        # This is Jahn's heuristic to be able to still use WSJ alignments.
-        offset = [
-            offset_ - rir_start_sample_
-            for offset_, rir_start_sample_ in zip(
-                example[keys.OFFSET], rir_start_sample)
-        ]
-
-        assert len(x) == len(offset)
-        x = [
-            SparseArray.from_array_and_onset(x_, offset_, (D, T))
-            for x_, offset_ in zip(x, offset)
-        ]
-        assert len(x) == K, (len(x), K)
-        assert x[0].shape == (D, T), (x[0].shape, (D, T))
+        assert len(x) == len(rir_offset) == K
         return x
 
-    x = get_convolved_signals(h)
+    # Speech source is simply the shifted and padded original source signals
+    audio_data[keys.SPEECH_SOURCE] = pad_sparse(
+        audio_data[keys.ORIGINAL_SOURCE],
+        example[keys.OFFSET][keys.ORIGINAL_SOURCE],
+        target_shape=T,
+    )
 
-    example[keys.AUDIO_DATA][keys.SPEECH_IMAGE] = x
-
-    def _squeeze(x):
-        if squeeze_channels:
-            if channel_slice == slice(1):
-                assert x[0].shape[0] == 1
-                x = [x_[0] for x_ in x]
-        return x
-
-    x = _squeeze(x)
+    # Compute the reverberated signals
+    audio_data[keys.ORIGINAL_REVERBERATED] = get_convolved_signals(h)
+    audio_data[keys.SPEECH_IMAGE] = pad_sparse(
+        audio_data[keys.ORIGINAL_REVERBERATED], rir_offset, (D, T))
+    example[keys.NUM_SAMPLES][keys.ORIGINAL_REVERBERATED] = [
+        a.shape[-1] for a in audio_data[keys.ORIGINAL_REVERBERATED]
+    ]
+    example[keys.OFFSET][keys.ORIGINAL_REVERBERATED] = rir_offset
 
     if add_speech_reverberation_early:
+        # Obtain the early reverberation part: Mask the tail reverberation by
+        # setting everything behind the RIR stop sample to zero
         h_early = h.copy()
-        # Replace this with advanced indexing
         for i in range(h_early.shape[0]):
             h_early[i, ..., rir_stop_sample[i]:] = 0
-        x_early = get_convolved_signals(h_early)
-        x_early = _squeeze(x_early)
-        example[keys.AUDIO_DATA][keys.SPEECH_REVERBERATION_EARLY] = x_early
+
+        # Compute convolution
+        audio_data[keys.ORIGINAL_REVERBERATION_EARLY] = get_convolved_signals(h_early)
+        audio_data[keys.SPEECH_REVERBERATION_EARLY] = pad_sparse(
+            audio_data[keys.ORIGINAL_REVERBERATION_EARLY], rir_offset, (D, T))
 
         if details:
-            example[keys.AUDIO_DATA][keys.RIR_EARLY] = h_early
+            audio_data[keys.RIR_EARLY] = h_early
 
     if add_speech_reverberation_tail:
+        # Obtain the tail reverberation part: Mask the early reverberation by
+        # setting everything before the RIR stop sample to zero
         h_tail = h.copy()
         for i in range(h_tail.shape[0]):
             h_tail[i, ..., :rir_stop_sample[i]] = 0
-        x_tail = get_convolved_signals(h_tail)
-        x_tail = _squeeze(x_tail)
-        example[keys.AUDIO_DATA][keys.SPEECH_REVERBERATION_TAIL] = x_tail
+
+        # Compute convolution
+        audio_data[keys.ORIGINAL_REVERBERATION_TAIL] = get_convolved_signals(h_tail)
+        audio_data[keys.SPEECH_REVERBERATION_TAIL] = pad_sparse(
+            audio_data[keys.ORIGINAL_REVERBERATION_TAIL], rir_offset, (D, T))
 
         if details:
-            example[keys.AUDIO_DATA][keys.RIR_TAIL] = h_tail
+            audio_data[keys.RIR_TAIL] = h_tail
 
-    if sync_speech_source:
-        example[keys.AUDIO_DATA][keys.SPEECH_SOURCE] = synchronize_speech_source_sparse(
-            example[keys.AUDIO_DATA][keys.ORIGINAL_SOURCE],
-            offset=example[keys.OFFSET],
-            T=T,
-        )
-
-    clean_mix = sum(x, np.zeros((D, T), dtype=s[0].dtype))
-    example[keys.AUDIO_DATA][keys.OBSERVATION] = clean_mix
+    clean_mix = sum(audio_data[keys.SPEECH_IMAGE], np.zeros((D, T), dtype=s[0].dtype))
+    audio_data[keys.OBSERVATION] = clean_mix
     add_microphone_noise(example, snr_range)
     return example
