@@ -1,6 +1,8 @@
 import numpy as np
 
+import lazy_dataset
 import paderbox as pb
+from padercontrib.database import keys
 
 
 def get_rng(*seed: [str, int]) -> np.random.Generator:
@@ -19,6 +21,30 @@ def map_to_spk_id(example, sequence):
 def apply_for_spk(example, sequence):
     sequence = map_to_spk_id(example, sequence)
     return [sequence[s] for s in example['speaker_id']]
+
+
+def update_num_samples(example):
+    example[keys.NUM_SAMPLES][keys.OBSERVATION] = np.max(np.asarray(
+        example[keys.NUM_SAMPLES][keys.ORIGINAL_SOURCE]
+    ) + np.asarray(example[keys.OFFSET][keys.ORIGINAL_SOURCE]))
+
+
+def normalize_example(example):
+    for key in (keys.NUM_SAMPLES, keys.AUDIO_PATH):
+        if not isinstance(example[key], dict):
+            example[key] = {keys.OBSERVATION: example[key]}
+    if 'scenario' not in example:
+        example['scenario'] = example[keys.SPEAKER_ID]
+    return example
+
+
+def cache_and_normalize_input_dataset(ds):
+    # Cache & sort for reproducibility
+    ds = lazy_dataset.from_dict({
+        ex['example_id']: ex for ex in ds
+    })
+    ds = ds.sort().map(normalize_example)
+    return ds
 
 
 def collate_fn(batch):

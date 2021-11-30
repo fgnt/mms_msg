@@ -51,5 +51,9 @@ def sample_rirs(example: dict, *, rir_dataset: lazy_dataset.Dataset):
 class RIRSampler:
     rir_dataset: lazy_dataset.Dataset
 
+    @classmethod
+    def from_scenarios_json(cls, scenarios_json, dataset_name):
+        return cls(rir_dataset_from_scenarios(scenarios_json, dataset_name))
+
     def __call__(self, example: dict) -> dict:
         return sample_rirs(example, rir_dataset=self.rir_dataset)

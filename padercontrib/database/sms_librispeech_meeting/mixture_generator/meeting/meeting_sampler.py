@@ -1,15 +1,19 @@
 import copy
 import functools
 import logging
+import operator
 from dataclasses import dataclass
 from dataclasses import field
 import numpy as np
+from padercontrib.database import keys
 
 import paderbox as pb
 from lazy_dataset import Dataset
 from .overlap_sampler import OverlapSampler, UniformOverlapSampler
 from .scenario_sequence_sampler import sample_balanced
+from .. import update_num_samples, normalize_example, cache_and_normalize_input_dataset
 from ..utils import collate_fn, get_rng_example
+from ..utils.sampling import sample_random_round_robin
 
 logger = logging.getLogger('meeting')
 
@@ -26,6 +30,7 @@ def sample_meeting_from_full_overlap(
         ),
         scenario_sequence_sampler: callable = sample_balanced,
 ):
+    input_dataset = cache_and_normalize_input_dataset(input_dataset)
     example_id = example['example_id']
     base_examples = [input_dataset[source_id] for source_id in example['source_id']]
     logger.debug(f'Generating meeting with example ID "{example_id}"')
@@ -42,7 +47,8 @@ def sample_meeting_from_full_overlap(
     # Add base examples to be sure that each speaker is active at least once
     while (
             max([
-                example['offset'] + example['num_samples'] for example in examples
+                example[keys.OFFSET][keys.ORIGINAL_SOURCE] +
+                example['num_samples']['observation'] for example in examples
             ], default=0) < duration
             or len(base_examples) > 0
     ):
@@ -60,17 +66,15 @@ def sample_meeting_from_full_overlap(
             )
             logger.debug(f'Sampling for scenario "{current_scenario}"')
 
-            current_scenario_sources = [
-                x['example_id'] for x in examples
-                if x['scenario'] == current_scenario
-            ]
-            current_scenario_sources = (
-                current_scenario_sources[len(current_scenario_sources) -
-                                         (len(current_scenario_sources) % len(grouped_dataset[current_scenario])):]
+            current_source_id = sample_random_round_robin(
+                grouped_dataset[current_scenario].keys(),
+                sequence=[
+                    x['example_id'] for x in examples
+                    if x['scenario'] == current_scenario
+                ],
+                rng=get_rng_example(example, 'example', segment_idx),
             )
-            available_sources = [x for x in grouped_dataset[current_scenario] if
-                                 x['example_id'] not in current_scenario_sources]
-            current_source = get_rng_example(example, 'example', segment_idx).choice(available_sources)
+            current_source = input_dataset[current_source_id]
         current_source = copy.copy(current_source)
 
         # Sample either overlap or silence duration
@@ -79,8 +83,8 @@ def sample_meeting_from_full_overlap(
             offset = overlap_sampler(examples, current_source, rng)
         else:
             offset = 0
-        current_source['offset'] = offset
-        current_source['speaker_end'] = offset + current_source['num_samples']
+        current_source[keys.OFFSET] = {keys.ORIGINAL_SOURCE: offset}
+        current_source['speaker_end'] = offset + current_source['num_samples']['observation']
 
         examples.append(current_source)
 
@@ -115,15 +119,12 @@ def sample_meeting_from_full_overlap(
     flat_example = pb.utils.nested.flatten(example)
     speaker_ids = flat_example['speaker_id']
     collated_examples['num_samples'] = {
-        'original_source': collated_examples['num_samples']
+        'original_source': collated_examples['num_samples']['observation']
     }
     sources = collated_examples['audio_path'].pop('observation')
     collated_examples['audio_path']['original_source'] = sources
     collated_examples['source_dataset'] = collated_examples['dataset']
-    collated_examples['num_samples']['observation'] = np.max(
-        np.asarray(collated_examples['num_samples']['original_source']) +
-        np.asarray(collated_examples['offset'])
-    )
+    update_num_samples(collated_examples)
     collated_examples['dataset'] = example['dataset']
 
     # Copy and replicate

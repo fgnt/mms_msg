@@ -1,8 +1,11 @@
 import numpy as np
+from ..utils.sampling import sample_random_round_robin as _sample_random_round_robin
+from ..utils.sampling import sample_round_robin as _sample_round_robin
+from ..utils.sampling import sample_random as _sample_random
 
 
-def sample_random(scenarios, rng: np.random.Generator):
-    return rng.choice(scenarios)
+def sample_random(scenarios, examples, rng: np.random.Generator):
+    return _sample_random(scenarios, None, rng)
 
 
 def sample_round_robin(scenarios, examples, rng: np.random.Generator):
@@ -21,7 +24,7 @@ def sample_round_robin(scenarios, examples, rng: np.random.Generator):
     c
     a
     """
-    return scenarios[len(examples) % len(scenarios)]
+    return _sample_round_robin(scenarios, examples, rng)
 
 
 def sample_random_round_robin(scenarios, examples, rng: np.random.Generator):
@@ -44,14 +47,17 @@ def sample_random_round_robin(scenarios, examples, rng: np.random.Generator):
     b
     c
     """
-    present_examples = examples[len(examples)-len(examples) % len(scenarios):]
-    present_ids = set([x['scenario'] for x in present_examples])
-    return rng.choice(list(set(scenarios) - present_ids))
+    return _sample_random_round_robin(
+        scenarios, [x['scenario'] for x in examples], rng
+    )
 
 
 def _get_activity(scenarios, examples):
     return np.asarray([
-        sum([x['num_samples'] for x in examples if x['scenario'] == scenario])
+        sum([
+            x['num_samples']['observation']
+             for x in examples if x['scenario'] == scenario
+        ])
         for scenario in scenarios
     ])
 
