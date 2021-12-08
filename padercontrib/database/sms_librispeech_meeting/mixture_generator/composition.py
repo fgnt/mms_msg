@@ -99,8 +99,8 @@ class DynamicDataset(Dataset):
                 self.composition_sampler, self.input_dataset, self.num_speakers,
             )
 
-    def __iter__(self):
-        return iter(self.get_new_dataset())
+    def __iter__(self, with_key=False):
+        return self.get_new_dataset().__iter__(with_key=with_key)
 
     def __len__(self):
         return len(self.input_dataset)
