@@ -1,3 +1,5 @@
+from collections import Hashable
+
 import numpy as np
 
 import lazy_dataset
@@ -30,11 +32,47 @@ def update_num_samples(example):
 
 
 def normalize_example(example):
+    """
+    The output of this function always has the following structure (plus any
+    additional keys that are already present in `example`):
+
+        {
+            audio_path: {observation: str},
+            num_samples: {observation: int},
+            scenario: str,  (only required for meetings, but it doesn't hurt)
+            example_id: str,
+            speaker_id: str,
+        }
+
+    >>> normalize_example({'num_samples': 42, 'audio_path': 'asdf'})
+    Traceback (most recent call last):
+      ...
+    AssertionError: Invalid input example: {'num_samples': 42, 'audio_path': 'asdf'}
+    >>> normalize_example({'num_samples': 42, 'audio_path': 'asdf', 'example_id': 0, 'speaker_id': 42})
+    {'num_samples': {'observation': 42}, 'audio_path': {'observation': 'asdf'}, 'example_id': 0, 'speaker_id': 42, 'scenario': 42}
+    """
+    # Perform some checks
+    try:
+        assert 'example_id' in example
+        assert isinstance(example['example_id'], Hashable)
+        assert 'speaker_id' in example
+        assert isinstance(example['speaker_id'], Hashable)
+        assert 'num_samples' in example
+        assert 'audio_path' in example
+    except AssertionError as e:
+        raise AssertionError(f'Invalid input example: {example}') from e
+
+    # Normalize some common formats
+    # Introduce the observation key when it is not present (is omitted, e.g.,
+    # in LibriSpeech, Timit, ...
     for key in (keys.NUM_SAMPLES, keys.AUDIO_PATH):
         if not isinstance(example[key], dict):
             example[key] = {keys.OBSERVATION: example[key]}
+
+    # Set a default for scenario
     if 'scenario' not in example:
         example['scenario'] = example[keys.SPEAKER_ID]
+
     return example
 
 
