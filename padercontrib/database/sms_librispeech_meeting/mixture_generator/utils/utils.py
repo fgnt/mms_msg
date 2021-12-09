@@ -42,6 +42,7 @@ def normalize_example(example):
             scenario: str,  (only required for meetings, but it doesn't hurt)
             example_id: str,
             speaker_id: str,
+            dataset: str,   (source dataset name, required for rng)
         }
 
     >>> normalize_example({'num_samples': 42, 'audio_path': 'asdf'})
@@ -59,6 +60,7 @@ def normalize_example(example):
         assert isinstance(example['speaker_id'], Hashable)
         assert 'num_samples' in example
         assert 'audio_path' in example
+        assert 'dataset' in example
     except AssertionError as e:
         raise AssertionError(f'Invalid input example: {example}') from e
 
@@ -77,6 +79,9 @@ def normalize_example(example):
 
 
 def cache_and_normalize_input_dataset(ds):
+    if isinstance(ds, dict):
+        # Use key as example_id, but overwrite with explicit example_id entry
+        ds = [{'example_id': k, **x} for k, x in ds.items()]
     # Cache & sort for reproducibility
     ds = lazy_dataset.from_dict({
         ex['example_id']: ex for ex in ds
@@ -238,9 +243,9 @@ def test_example_composition(a, b, speaker_ids):
     """
     # Ensure that a speaker is not mixed with itself
     # This also ensures that an utterance is not mixed with itself
-    assert np.all(speaker_ids[a] != speaker_ids[b]), ('speaker duplicate', len(a) - np.sum(speaker_ids[a] != speaker_ids[b]))
+    assert np.all(speaker_ids[a] != speaker_ids[b]), (
+    'speaker duplicate', len(a) - np.sum(speaker_ids[a] != speaker_ids[b]))
 
     # Ensure that any pair of utterances does not appear more than once
     tmp = [tuple(sorted(ab)) for ab in zip(a, b)]
     assert len(set(tuple(tmp))) == len(a), ('duplicate pair', len(a) - len(set(tuple(tmp))))
-

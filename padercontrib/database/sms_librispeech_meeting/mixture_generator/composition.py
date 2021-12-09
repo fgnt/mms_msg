@@ -143,7 +143,7 @@ def _composition_list_to_dict(
         assert pb.utils.misc.all_unique(example['speaker_id']), example['speaker_id']
 
         # Build an example ID for each example
-        example_id = '_'.join([str(idx), *example['example_id']])
+        example_id = '_'.join([str(idx), *map(str, example['example_id'])])
         assert example_id not in base, (
             'Duplicate example IDs found! Modify the example ID generation '
             'code to avoid this!'
