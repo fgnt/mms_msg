@@ -222,7 +222,11 @@ def get_composition_dataset(
     `input_dataset`
     """
     if rng is True:
-        return DynamicDataset(composition_sampler, input_dataset, num_speakers)
+        return DynamicDataset(
+            composition_sampler,
+            cache_and_normalize_input_dataset(input_dataset),
+            num_speakers,
+        )
     composition = get_composition(
         input_dataset=input_dataset,
         num_speakers=num_speakers,
