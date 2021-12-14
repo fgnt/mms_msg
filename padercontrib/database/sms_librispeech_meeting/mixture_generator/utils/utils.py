@@ -142,7 +142,9 @@ def collate_fn(batch):
         return batch
 
 
-def extend_composition_example_greedy(rng, speaker_ids, example_compositions=None, tries=500):
+def extend_composition_example_greedy(
+        rng, speaker_ids, example_compositions=None, tries=500
+):
     """
 
     Args:
@@ -213,6 +215,8 @@ def extend_composition_example_greedy(rng, speaker_ids, example_compositions=Non
             pass
         else:
             break
+    else:
+        raise RuntimeError(f'Couldn\'t find a valid speaker composition')
 
     return np.concatenate([example_compositions, candidates[:, None]], axis=-1)
 
