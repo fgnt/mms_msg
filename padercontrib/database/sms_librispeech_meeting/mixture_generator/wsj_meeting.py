@@ -1,11 +1,11 @@
 import functools
 from pathlib import Path
 
-from lazy_dataset.database import JsonDatabase
 from paderbox.io.data_dir import database_jsons
+from padercontrib.io import data_dir
 from padercontrib.database.wsj import WSJ_8kHz
 from .composition import get_composition_dataset
-from .rir.rir import sample_rirs
+from .rir.rir import RIRSampler
 from .utils.scaling import UniformLogWeightSampler
 from .utils.wsj import filter_punctuation_pronunciation
 from .meeting import MeetingSampler
@@ -17,20 +17,17 @@ class WSJ8_kHz_Meeting(WSJ_8kHz):
             json_path: [str, Path] = database_jsons / 'wsj_8k.json',
             alignment_handler=None,
             meeting_sampler=MeetingSampler(),
-            num_speakers=2,
+            num_speakers=(5, 6, 7, 8),
             max_log_weight=5,
             rng=False,
-            rir_json_path=None,
+            rir_scenarios_json_path=None,
     ):
         super().__init__(json_path, alignment_handler)
         self.num_speakers = num_speakers
         self.rng = rng
         self.max_log_weight = max_log_weight
         self.meeting_sampler = meeting_sampler
-        if rir_json_path is not None:
-            self.rir_database = JsonDatabase(rir_json_path)
-        else:
-            self.rir_database = None
+        self.rir_scenarios_json_path = rir_scenarios_json_path
 
     @staticmethod
     def format_fn(example):
@@ -57,10 +54,9 @@ class WSJ8_kHz_Meeting(WSJ_8kHz):
                 rng=self.rng
             )
             ds = ds.map(UniformLogWeightSampler(max_weight=self.max_log_weight))
-            if self.rir_database is not None:
-                ds = ds.map(functools.partial(
-                    sample_rirs,
-                    rir_dataset=self.rir_database.get_dataset(dataset_name)
+            if self.rir_scenarios_json_path is not None:
+                ds = ds.map(RIRSampler.from_scenarios_json(
+                    self.rir_scenarios_json_path, dataset_name
                 ))
-            ds = ds.map(self.meeting_sampler)
+            ds = ds.map(self.meeting_sampler(input_ds))
             return ds
