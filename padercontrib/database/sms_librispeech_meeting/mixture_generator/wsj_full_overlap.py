@@ -4,7 +4,7 @@ from lazy_dataset.database import JsonDatabase
 from paderbox.io.data_dir import database_jsons
 from padercontrib.database.wsj import WSJ_8kHz
 from .composition import get_composition_dataset
-from .rir.rir import sample_rirs
+from .rir.rir import RIRSampler
 from .utils.offset import SMSWSJOffsetSampler
 from .utils.scaling import UniformLogWeightSampler
 from .utils.wsj import filter_punctuation_pronunciation
@@ -63,5 +63,5 @@ class SpatializedWSJ8_kHz_FullOverlap(WSJ8_kHz_FullOverlap):
 
     def _get_dataset(self, dataset_name=None):
         return super()._get_dataset(dataset_name).map(
-            sample_rirs(rir_dataset=self.rir_database.get_dataset(dataset_name))
+            RIRSampler(rir_dataset=self.rir_database.get_dataset(dataset_name))
         )
