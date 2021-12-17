@@ -1,6 +1,8 @@
-from dataclasses import dataclass
-
 import logging
+from dataclasses import dataclass
+from typing import List
+
+import numpy as np
 
 from .utils import get_rng_example
 
@@ -29,3 +31,16 @@ class UniformLogWeightSampler:
 
     def __call__(self, example):
         return sample_log_weights_uniform(example, max_weight=self.max_weight)
+
+
+@dataclass(frozen=True)
+class ConstantLogWeightSampler:
+    weights: [float, List[float]] = 0.
+
+    def __call__(self, example):
+        weights = self.weights
+        if not isinstance(weights, (list, tuple)):
+            weights = [weights] * len(example['speaker_id'])
+        weights = np.asarray(weights[:len(example['speaker_id'])])
+        example['log_weights'] = _normalize_log_weights(weights)
+        return example
