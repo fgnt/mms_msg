@@ -125,9 +125,15 @@ def get_scale(
     assert len(log_weights) == len(signals), (len(log_weights), len(signals))
     log_weights = np.asarray(log_weights)
 
+    # Note: scale depends on channel mode
+    std = np.maximum(
+        np.array([np.std(s, keepdims=True) for s in signals]),
+        np.finfo(signals[0].dtype).tiny
+    )
+
     # Bring into the correct shape
     log_weights = log_weights.reshape((-1,) + (1,) * signals[0].ndim)
-    scale = 10 ** (log_weights / 20)
+    scale = 10 ** (log_weights / 20) / std
 
     # divide by 71 to ensure that all values are between -1 and 1 (WHY 71?)
     # TODO: find a good value for both WSJ and LibriSpeech
@@ -261,10 +267,6 @@ def multi_channel_scenario_map_fn(
     if normalize_sources:
         s = [s_ - np.mean(s_) for s_ in s]
 
-    # Scale s with log_weights before convolution
-    scale = get_scale(example[keys.LOG_WEIGHTS], s)
-    s = [s_ * scale_ for s_, scale_ in zip(s, scale)]
-
     def get_convolved_signals(h):
         """Convolve the scaled signals `s` with the RIRs in `h`. Returns
         the (unpadded) convolved signals with offsets and the padded convolved
@@ -287,11 +289,25 @@ def multi_channel_scenario_map_fn(
     audio_data[keys.SPEECH_SOURCE] = pad_sparse(
         audio_data[keys.ORIGINAL_SOURCE],
         example[keys.OFFSET][keys.ORIGINAL_SOURCE],
-        target_shape=T,
+        target_shape=(T,),
     )
 
     # Compute the reverberated signals
     audio_data[keys.ORIGINAL_REVERBERATED] = get_convolved_signals(h)
+
+    # Scale s with log_weights before convolution
+    scale = get_scale(
+        example[keys.LOG_WEIGHTS],
+        audio_data[keys.ORIGINAL_REVERBERATED]
+    )
+
+    def apply_scale(x):
+        return [x_ * scale_ for x_, scale_ in zip(x, scale)]
+
+    audio_data[keys.ORIGINAL_REVERBERATED] = apply_scale(
+        audio_data[keys.ORIGINAL_REVERBERATED]
+    )
+
     audio_data[keys.SPEECH_IMAGE] = pad_sparse(
         audio_data[keys.ORIGINAL_REVERBERATED], rir_offset, (D, T))
     example[keys.NUM_SAMPLES][keys.ORIGINAL_REVERBERATED] = [
@@ -307,7 +323,9 @@ def multi_channel_scenario_map_fn(
             h_early[i, ..., rir_stop_sample[i]:] = 0
 
         # Compute convolution
-        audio_data[keys.ORIGINAL_REVERBERATION_EARLY] = get_convolved_signals(h_early)
+        audio_data[keys.ORIGINAL_REVERBERATION_EARLY] = apply_scale(
+            get_convolved_signals(h_early)
+        )
         audio_data[keys.SPEECH_REVERBERATION_EARLY] = pad_sparse(
             audio_data[keys.ORIGINAL_REVERBERATION_EARLY], rir_offset, (D, T))
 
@@ -322,7 +340,9 @@ def multi_channel_scenario_map_fn(
             h_tail[i, ..., :rir_stop_sample[i]] = 0
 
         # Compute convolution
-        audio_data[keys.ORIGINAL_REVERBERATION_TAIL] = get_convolved_signals(h_tail)
+        audio_data[keys.ORIGINAL_REVERBERATION_TAIL] = apply_scale(
+            get_convolved_signals(h_tail)
+        )
         audio_data[keys.SPEECH_REVERBERATION_TAIL] = pad_sparse(
             audio_data[keys.ORIGINAL_REVERBERATION_TAIL], rir_offset, (D, T))
 
@@ -333,3 +353,59 @@ def multi_channel_scenario_map_fn(
     audio_data[keys.OBSERVATION] = clean_mix
     add_microphone_noise(example, snr_range)
     return example
+
+
+def combine_speaker_signals(example):
+    # Group everything by speaker
+    grouped_example = {}
+    extra = {}
+
+    # Whitelists
+    combine_equal = (
+        'speaker_id',
+        'gender',
+    )
+    combine_list = (
+        'transcription',
+        'kaldi_transcription',
+    )
+    combine = combine_equal + combine_list
+    remove = (
+        'log_weights',
+        'audio_path.rir',
+        'source_position',
+        'source_dataset',
+    )
+    blacklist = (
+        'sensor_positions',
+        'room_dimensions',
+        'example_id',
+        'num_speakers',
+        'sound_decay_time',
+        'sensor_position',
+    )
+    speaker_ids = example[keys.SPEAKER_ID]
+    key_fn = operator.itemgetter(0)
+    for k, v in pb.utils.nested.flatten(example).items():
+        if k in combine:
+            if k in combine_equal:
+                def _combine(x):
+                    assert pb.utils.misc.all_equal(x), x
+                    return x[0]
+            elif k in combine_list:
+                _combine = list
+            else:
+                assert False, 'Can never happen'
+
+            assert len(speaker_ids) == len(v), (k, len(speaker_ids), len(v))
+            grouped_example[k] = [
+                _combine(values)
+                for _, values in itertools.groupby(sorted(zip(speaker_ids, v), key=key_fn), key=key_fn)
+            ]
+        elif k in remove:
+            # Don't add to grouped example
+            pass
+        elif k in blacklist:
+            extra[k] = v
+        else:
+            raise RuntimeError(f'key {k} neither in whitelist nor blacklist')
