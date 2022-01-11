@@ -87,7 +87,7 @@ class DynamicDataset(Dataset):
         return get_composition_dataset(
             input_dataset=self.input_dataset,
             composition_sampler=self.composition_sampler,
-            rng=int(np.random.default_rng().integers(2 ** 32)),
+            rng=int(np.random.randint(2 ** 32)),
             num_speakers=self.num_speakers,
         )
 
