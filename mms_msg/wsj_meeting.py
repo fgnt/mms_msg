@@ -54,13 +54,12 @@ class WSJ_8kHz_Meeting(JsonDatabase):
     def __init__(
             self,
             json_path: [str, Path] = database_jsons / 'wsj_8k.json',
-            alignment_handler=None,
             meeting_sampler=MeetingSampler(),
             num_speakers=(5, 6, 7, 8),
             max_log_weight=5,
             rir_scenarios_json_path=None,
     ):
-        super().__init__(json_path, alignment_handler)
+        super().__init__(json_path)
         self.num_speakers = num_speakers
         self.max_log_weight = max_log_weight
         self.meeting_sampler = meeting_sampler

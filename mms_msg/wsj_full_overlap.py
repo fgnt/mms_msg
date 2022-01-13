@@ -12,12 +12,11 @@ class WSJ8_kHz_FullOverlap(JsonDatabase):
     def __init__(
             self,
             json_path: [str, Path] = database_jsons / 'wsj_8k.json',
-            alignment_handler=None,
             num_speakers=2,
             max_log_weight=5,
             rng=False,
     ):
-        super().__init__(json_path, alignment_handler)
+        super().__init__(json_path)
         self.num_speakers = num_speakers
         self.rng = rng
         self.max_log_weight = max_log_weight
@@ -49,13 +48,11 @@ class SpatializedWSJ8_kHz_FullOverlap(WSJ8_kHz_FullOverlap):
             self,
             rir_json_path: [str, Path],
             json_path: [str, Path] = database_jsons / 'wsj_8k.json',
-            alignment_handler=None,
             num_speakers=2,
             max_log_weight=5,
             rng=False
     ):
-        super().__init__(json_path, alignment_handler, num_speakers,
-                         max_log_weight, rng)
+        super().__init__(json_path, num_speakers, max_log_weight, rng)
         self.rir_database = JsonDatabase(rir_json_path)
 
     def _get_dataset(self, dataset_name=None):
