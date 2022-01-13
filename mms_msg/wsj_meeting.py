@@ -1,14 +1,12 @@
-import functools
 from pathlib import Path
 
+from lazy_dataset.database import JsonDatabase
 from paderbox.io.data_dir import database_jsons
-from padercontrib.io import data_dir
-from padercontrib.database.wsj import WSJ_8kHz
-from padercontrib.database.sms_librispeech_meeting.mixture_generator.composition import get_composition_dataset
-from padercontrib.database.sms_librispeech_meeting.mixture_generator.rir.rir import RIRSampler
-from padercontrib.database.sms_librispeech_meeting.mixture_generator.utils.scaling import UniformLogWeightSampler
-from padercontrib.database.sms_librispeech_meeting.mixture_generator.utils.wsj import filter_punctuation_pronunciation
-from padercontrib.database.sms_librispeech_meeting.mixture_generator.meeting import MeetingSampler
+from mms_msg.composition import get_composition_dataset
+from mms_msg.rir import RIRSampler
+from mms_msg.utils import UniformLogWeightSampler
+from mms_msg.utils.wsj import filter_punctuation_pronunciation
+from mms_msg.meeting import MeetingSampler
 
 
 def get_dataset_name_and_rng(dataset_name):
@@ -37,7 +35,7 @@ def get_dataset_name_and_rng(dataset_name):
     return dataset_name, rng
 
 
-class WSJ_8kHz_Meeting(WSJ_8kHz):
+class WSJ_8kHz_Meeting(JsonDatabase):
     """
     >>> db = WSJ_8kHz_Meeting(num_speakers=4)
     >>> from pprint import pprint

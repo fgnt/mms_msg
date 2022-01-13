@@ -1,16 +1,11 @@
-import abc
-import dataclasses
 import functools
 import operator
 from dataclasses import dataclass
-from typing import Optional, Iterable
-
-from cached_property import cached_property
+from typing import Iterable
 
 import lazy_dataset
 import paderbox as pb
-from .utils import extend_composition_example_greedy, normalize_example, cache_and_normalize_input_dataset
-from .utils import collate_fn, get_rng
+from mms_msg.utils import extend_composition_example_greedy, cache_and_normalize_input_dataset, collate_fn, get_rng
 from lazy_dataset import Dataset
 import numpy as np
 import logging

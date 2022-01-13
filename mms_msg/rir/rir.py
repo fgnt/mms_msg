@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import lazy_dataset
-import paderbox as pb
 from lazy_dataset.database import JsonDatabase
 
 

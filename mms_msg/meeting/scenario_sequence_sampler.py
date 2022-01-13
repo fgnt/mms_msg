@@ -1,11 +1,9 @@
 import numpy as np
-from ..utils.sampling import sample_random_round_robin as _sample_random_round_robin
-from ..utils.sampling import sample_round_robin as _sample_round_robin
-from ..utils.sampling import sample_random as _sample_random
+from mms_msg.utils import sampling
 
 
 def sample_random(scenarios, examples, rng: np.random.Generator):
-    return _sample_random(scenarios, None, rng)
+    return sampling.sample_random(scenarios, None, rng)
 
 
 def sample_round_robin(scenarios, examples, rng: np.random.Generator):
@@ -24,7 +22,7 @@ def sample_round_robin(scenarios, examples, rng: np.random.Generator):
     c
     a
     """
-    return _sample_round_robin(scenarios, examples, rng)
+    return sampling.sample_round_robin(scenarios, examples, rng)
 
 
 def sample_random_round_robin(scenarios, examples, rng: np.random.Generator):
@@ -47,7 +45,7 @@ def sample_random_round_robin(scenarios, examples, rng: np.random.Generator):
     b
     c
     """
-    return _sample_random_round_robin(
+    return sampling.sample_random_round_robin(
         scenarios, [x['scenario'] for x in examples], rng
     )
 

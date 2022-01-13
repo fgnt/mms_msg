@@ -2,15 +2,13 @@ from pathlib import Path
 
 from lazy_dataset.database import JsonDatabase
 from paderbox.io.data_dir import database_jsons
-from padercontrib.database.wsj import WSJ_8kHz
-from .composition import get_composition_dataset
-from .rir.rir import RIRSampler
-from .utils.offset import SMSWSJOffsetSampler
-from .utils.scaling import UniformLogWeightSampler
-from .utils.wsj import filter_punctuation_pronunciation
+from mms_msg.composition import get_composition_dataset
+from mms_msg.rir import RIRSampler
+from mms_msg.utils import SMSWSJOffsetSampler, UniformLogWeightSampler
+from mms_msg.utils.wsj import filter_punctuation_pronunciation
 
 
-class WSJ8_kHz_FullOverlap(WSJ_8kHz):
+class WSJ8_kHz_FullOverlap(JsonDatabase):
     def __init__(
             self,
             json_path: [str, Path] = database_jsons / 'wsj_8k.json',
@@ -35,7 +33,6 @@ class WSJ8_kHz_FullOverlap(WSJ_8kHz):
                 )
             input_ds = super()._get_dataset(dataset_name)
             input_ds = input_ds.filter(filter_punctuation_pronunciation)
-            input_ds = input_ds.map(self.add_num_samples)
 
             ds = get_composition_dataset(
                 input_dataset=input_ds,

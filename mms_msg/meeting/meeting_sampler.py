@@ -1,23 +1,19 @@
 import copy
 import functools
 import logging
-import operator
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Iterable
 
-import numpy as np
 from cached_property import cached_property
 
-from padercontrib.database import keys
+from mms_msg import keys
 import padertorch as pt
 import paderbox as pb
 from lazy_dataset import Dataset
-from .overlap_sampler import OverlapSampler, UniformOverlapSampler
-from .scenario_sequence_sampler import sample_balanced
-from .. import update_num_samples, cache_and_normalize_input_dataset
-from ..utils import collate_fn, get_rng_example
-from ..utils.sampling import sample_random_round_robin
+from mms_msg.meeting.overlap_sampler import OverlapSampler, UniformOverlapSampler
+from mms_msg.meeting.scenario_sequence_sampler import sample_balanced
+from mms_msg.utils import update_num_samples, cache_and_normalize_input_dataset, collate_fn, get_rng_example, sampling
 
 logger = logging.getLogger('meeting')
 
@@ -73,7 +69,7 @@ class _MeetingSampler:
                 )
                 logger.debug(f'Sampling for scenario "{current_scenario}"')
 
-                current_source_id = sample_random_round_robin(
+                current_source_id = sampling.sample_random_round_robin(
                     self.scenario_grouped_dataset[current_scenario].keys(),
                     sequence=[
                         x['example_id'] for x in examples

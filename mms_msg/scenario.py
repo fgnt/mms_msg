@@ -8,7 +8,7 @@ from scipy.signal import fftconvolve
 from sms_wsj.database.utils import get_white_noise_for_signal
 from sms_wsj.reverb.reverb_utils import get_rir_start_sample
 
-from .. import keys
+from mms_msg import keys
 
 from paderbox.array.sparse import SparseArray
 

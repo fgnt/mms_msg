@@ -4,7 +4,7 @@ import numpy as np
 
 import lazy_dataset
 import paderbox as pb
-from padercontrib.database import keys
+from mms_msg import keys
 
 
 def get_rng(*seed: [str, int]) -> np.random.Generator:
