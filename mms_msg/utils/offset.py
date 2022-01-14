@@ -32,11 +32,25 @@ def sample_offsets_constant(example, *, offsets):
     return example
 
 
-def sample_partial_overlap(example, *, min_overlap, max_overlap):
+def sample_partial_overlap(example, *, minimum_overlap, maximum_overlap):
+    """
+    >>> from IPython.lib.pretty import pprint
+    >>> ex = {
+    ...     'dataset': 'dataset',  # Needed for rng
+    ...     'example_id': 'example_id',  # Needed for rng
+    ...     'num_samples': {'original_source': [10_000, 15_000]}
+    ... }
+    >>> ex = sample_partial_overlap(ex, minimum_overlap=0, maximum_overlap=1)
+    >>> del ex['dataset'], ex['example_id']
+    >>> pprint(ex)
+    {'num_samples': {'original_source': [10000, 15000],
+      'observation': 20390.74687131983},
+     'offset': {'original_source': [0, 5390.746871319828]}}
+    """
     rng = get_rng_example(example, 'offset')
-    overlap = rng.uniform(min_overlap, max_overlap)
+    overlap = rng.uniform(minimum_overlap, maximum_overlap)
     num_samples = example[keys.NUM_SAMPLES][keys.ORIGINAL_SOURCE]
-    assert len(num_samples) == 2
+    assert len(num_samples) == 2, (len(num_samples), num_samples)
     overlap_samples = sum(num_samples)*overlap / (1 + overlap)
     offset = [0, max(num_samples[0] - overlap_samples, 0)]
     _assign_offset(example, offset)
@@ -62,12 +76,12 @@ class SMSWSJOffsetSampler:
 
 @dataclass(frozen=True)
 class PartialOverlapOffsetSampler:
-    min_overlap: float
-    max_overlap: float
+    minimum_overlap: float
+    maximum_overlap: float
 
     def __call__(self, example):
         return sample_partial_overlap(
             example,
-            min_overlap=self.min_overlap,
-            max_overlap=self.max_overlap
+            minimum_overlap=self.minimum_overlap,
+            maximum_overlap=self.maximum_overlap
         )
