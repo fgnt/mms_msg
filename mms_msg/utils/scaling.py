@@ -9,6 +9,13 @@ from mms_msg.utils.utils import get_rng_example
 logger = logging.getLogger('meeting_generator')
 
 
+__all__ = [
+    'sample_log_weights_uniform',
+    'UniformLogWeightSampler',
+    'ConstantLogWeightSampler',
+]
+
+
 def _normalize_log_weights(weights):
     weights -= weights.mean()
     return weights.tolist()

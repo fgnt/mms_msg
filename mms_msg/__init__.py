@@ -1,7 +1,14 @@
+from . import composition
+from . import utils
+from . import meeting
+from . import rir
+from . import meeting
+from . import databases
+
 from .composition import *
 from .utils.offset import *
 from .meeting import *
-from .rir.rir import *
+from .rir import *
 from .utils.scaling import *
 from .meeting import *
 
