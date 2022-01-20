@@ -4,6 +4,7 @@ from . import meeting
 from . import rir
 from . import meeting
 from . import databases
+from . import scenario
 
 from .composition import *
 from .utils.offset import *
