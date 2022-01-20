@@ -23,7 +23,7 @@ class _MeetingSampler:
     input_dataset: Iterable
     duration: int
     overlap_sampler: OverlapSampler
-    scenario_sequence_sampler: callable = sample_balanced,
+    scenario_sequence_sampler: callable = sample_balanced
 
     @cached_property
     def normalized_dataset(self) -> Dataset:
