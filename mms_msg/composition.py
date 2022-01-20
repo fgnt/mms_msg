@@ -154,12 +154,15 @@ def get_composition(
         input_dataset: Iterable,
         num_speakers: int,
         composition_sampler=sample_utterance_composition,
+        repetitions=1,
         rng: [int, bool] = False,
 ):
     """
     Build a composition as a `dict` from examples in `input_dataset`.
     """
     input_dataset = cache_and_normalize_input_dataset(input_dataset)
+
+    input_dataset = input_dataset.tile(repetitions)
 
     # Infer name from dataset. Make sure that all examples come
     # from the same dataset (otherwise the dataset name is not unique)
@@ -210,6 +213,7 @@ def get_composition_dataset(
         input_dataset: Iterable,
         num_speakers: int,
         composition_sampler: callable = sample_utterance_composition,
+        repetitions: int = 1,
         rng: [bool, int] = False,
 ):
     """
@@ -217,6 +221,7 @@ def get_composition_dataset(
     `input_dataset`
     """
     if rng is True:
+        assert repetitions == 1, repetitions
         return DynamicDataset(
             composition_sampler,
             cache_and_normalize_input_dataset(input_dataset),
@@ -226,6 +231,7 @@ def get_composition_dataset(
         input_dataset=input_dataset,
         num_speakers=num_speakers,
         composition_sampler=composition_sampler,
+        repetitions=repetitions,
         rng=rng,
     )
     name = next(iter(composition.values()))['dataset']
