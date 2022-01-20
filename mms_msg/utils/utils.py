@@ -147,3 +147,37 @@ def collate_fn(batch):
         return batch
 
 
+def sparse_array_to_numpy(ex, key='audio_data'):
+    def func(leaf):
+        if 'SparseArray' in leaf.__class__.__name__:
+            leaf = np.array(leaf)
+        return leaf
+
+    def to_numpy(data):
+        return pb.utils.nested.nested_op(func, data)
+
+    audio_data = ex['audio_data']
+    for k in audio_data.keys():
+        if 'original' in k:
+            # original indicate, that the length of the audio depends on the
+            # utterance length and not on the mixture length
+            #
+            # e.g.
+            # 'original_source'
+            # 'original_reverberated'
+            # 'original_reverberation_early'
+            # 'original_reverberation_tail'
+            # 'original_source'
+            audio_data[k] = to_numpy(audio_data[k])
+        else:
+            # e.g.
+            # 'rir'
+            # 'noise_image'
+            # 'speech_source'
+            # 'speech_image'
+            # 'speech_reverberation_early'
+            # 'speech_reverberation_tail'
+            # 'observation'
+            audio_data[k] = np.array(to_numpy(audio_data[k]))
+
+    return ex
