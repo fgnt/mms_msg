@@ -10,6 +10,12 @@ setup(
     author_email='vonneumann@nt.upb.de',
     description='MMS-MSG: Multipurpose Multi Speaker Mixture Signal Generator',
     install_requires=[
-        'paderbox', 'padertorch', 'lazy_dataset', 'tqdm',
+        'paderbox @ git+http://github.com/fgnt/paderbox',
+        'padertorch @ git+http://github.com/fgnt/padertorch',
+        'lazy_dataset',
+        'tqdm',
+        'cached_property',
+        'numpy',
+        'scipy',
     ],
 )
