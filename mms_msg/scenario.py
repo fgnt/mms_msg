@@ -12,6 +12,7 @@ from paderbox.array.sparse import SparseArray
 
 
 def pad_sparse(original_source, offset, target_shape):
+    assert len(offset) == len(original_source), (offset, original_source)
     padded = [
         SparseArray.from_array_and_onset(x_, offset_, target_shape)
         for x_, offset_ in zip(original_source, offset)
@@ -70,7 +71,7 @@ def anechoic_scenario_map_fn(
     s = [s_ * scale_ for s_, scale_ in zip(s, scale)]
 
     # Move and pad speech source to the correct position, use sparse array
-    speech_source = pad_sparse(s, offset, target_shape=T)
+    speech_source = pad_sparse(s, offset, target_shape=(T,))
 
     # The mix is now simply the sum over the speech sources
     # mix = np.sum(speech_source, axis=0)
@@ -236,6 +237,9 @@ def multi_channel_scenario_map_fn(
     rir_start_sample = np.array([get_rir_start_sample(h_k) for h_k in h])
 
     if channel_slice is not None:
+        if isinstance(h, list):
+            # All RIRs should have the same length
+            h = np.stack(h)
         h = h[:, channel_slice, :]
 
     _, D, rir_length = h.shape
