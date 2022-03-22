@@ -1,13 +1,36 @@
+import operator
+
 import numpy as np
+
+import tvn.operator
 from mms_msg.utils import sampling
 
 
-def sample_random(scenarios, examples, rng: np.random.Generator):
+def sample_random(scenarios: list, examples: list, rng: np.random.Generator):
+    """
+    Samples the scenarios uniformly, independent of the already sampled
+    `examples`.
+
+    Args:
+        scenarios: The scenarios to sample from
+        examples: The examples already sampled. Should be a list of dicts with
+            the key `'scenario'`.
+        rng: A random number generator
+    """
     return sampling.sample_random(scenarios, None, rng)
 
 
-def sample_round_robin(scenarios, examples, rng: np.random.Generator):
+def sample_round_robin(scenarios: list, examples: list, rng: np.random.Generator):
     """
+    Samples the scenarios in a repeating round-robin pattern.
+
+    Args:
+        scenarios: The scenarios to sample from
+        examples: The examples already sampled. Should be a list of dicts with
+            the key `'scenario'`. Used to determine the current state in the
+            round-robin sequence.
+        rng: A random number generator
+
     >>> scenarios = list('abc')
     >>> for i in range(10):
     ...     print(sample_round_robin(scenarios, [{}]*i, None))
@@ -25,8 +48,19 @@ def sample_round_robin(scenarios, examples, rng: np.random.Generator):
     return sampling.sample_round_robin(scenarios, examples, rng)
 
 
-def sample_random_round_robin(scenarios, examples, rng: np.random.Generator):
+def sample_random_round_robin(scenarios: list, examples: list, rng: np.random.Generator):
     """
+    Samples the scenarios in rounds, but each round is sampled uniformly.
+    Each round has length `len(scenario)` and each scenario is samples exactly
+    once in each round.
+
+    Args:
+        scenarios: The scenarios to sample from
+        examples: The examples already sampled. Should be a list of dicts with
+            the key `'scenario'`. Used to determine which examples have already
+            been sampled in the current round.
+        rng: A random number generator
+
     >>> scenarios = list('abc')
     >>> examples = []
     >>> rng = np.random.default_rng(0)
@@ -60,7 +94,20 @@ def _get_activity(scenarios, examples):
     ])
 
 
-def sample_balanced(scenarios, examples, rng: np.random.Generator):
+def sample_balanced(scenarios: list, examples: list, rng: np.random.Generator):
+    """
+    Samples the scenarios so that their activity (in num samples) is balanced.
+
+    Samples so that the number of samples for each scenario is approximately
+    equal (we can only guarantee that when sampling continues forever).
+
+    Args:
+        scenarios: The scenarios to sample from
+        examples: The examples already sampled. Should be a list of dicts with
+            the keys `'scenario'` and `'num_samples.observation'`. Used to
+            find the current activity for each scenario.
+        rng: A random number generator
+    """
     activities = _get_activity(scenarios, examples)
     p_scenario = 1 / activities
     p_scenario = p_scenario / np.sum(p_scenario)
@@ -68,7 +115,31 @@ def sample_balanced(scenarios, examples, rng: np.random.Generator):
     return rng.choice(scenarios, p=p_scenario)
 
 
+def sample_balanced_no_repeat(scenarios: list, examples: list, rng: np.random.Generator):
+    activities = _get_activity(scenarios, examples)
+    p_scenario = 1 / activities
+    if examples:
+        last_scenario = sorted(examples, key=lambda x: x['offset']['original_source'] + x['num_samples']['observation'])[-1]['scenario']
+        p_scenario[scenarios.index(last_scenario)] = 0
+    p_scenario = p_scenario / np.sum(p_scenario)
+    assert np.isclose(np.sum(p_scenario), 1)
+    return rng.choice(scenarios, p=p_scenario)
+
+
 def sample_asymmetric(scenarios, examples, rng: np.random.Generator, target_activity: np.ndarray):
+    """
+    Samples so that the activity (in num samples) roughly matches `target_activity`.
+
+    Sampling is done similar to `sample_balanced`, but the target is not given
+    by `target_activity` instead of a uniform distribution.
+
+    Args:
+        scenarios: The scenarios to sample from
+        examples: The examples already sampled. Should be a list of dicts with
+            the keys `'scenario'` and `'num_samples.observation'`. Used to
+            find the current activity for each scenario.
+        rng: A random number generator
+    """
     activities = _get_activity(scenarios, examples)
     activity_diff = target_activity - (
             activities / np.sum(activities)
