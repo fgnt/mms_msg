@@ -76,16 +76,26 @@ class UniformOverlapSampler(OverlapSampler):
     maximum_silence: int
     maximum_overlap: int
     minimum_silence: int = 0
-    minimum_overlap: int = 0
+    soft_minimum_overlap: int = 0
+    hard_minimum_overlap: int = 0
     margin: int = 0
+
+    def __post_init__(self):
+        assert self.minimum_silence >= self.margin, (self.minimum_silence, self.margin)
+        assert self.minimum_silence < self.maximum_silence, (self.minimum_silence, self.maximum_silence)
+        assert self.soft_minimum_overlap < self.maximum_overlap, (self.soft_minimum_overlap, self.maximum_overlap)
+        assert self.hard_minimum_overlap < self.maximum_overlap, (self.hard_minimum_overlap, self.maximum_overlap)
 
     def sample_offset(self, examples, maximum_overlap, rng):
         # Sample the shift (relative to the latest speaker_end) with rejection
         # sampling so that never more than max_concurrent_spk are active at the
         # same time. This means that we see more silence than self.p_silence
-        if maximum_overlap <= 0:
+        if maximum_overlap <= self.hard_minimum_overlap:
             # We can't sample overlap here, so sample silence
-            shift = self._sample_silence(rng)
+            shift = max(self._sample_silence(rng), self.margin)
+        elif maximum_overlap <= self.soft_minimum_overlap:
+            # Return maximum possible overlap in this case
+            shift = -maximum_overlap + self.margin
         else:
             for _ in range(100):    # Arbitrary upper bound for num rejections
                 shift = self._sample_shift(rng)
@@ -119,5 +129,5 @@ class UniformOverlapSampler(OverlapSampler):
         return silence
 
     def _sample_overlap(self, rng):
-        overlap = rng.integers(self.minimum_overlap, self.maximum_overlap)
+        overlap = rng.integers(self.hard_minimum_overlap, self.maximum_overlap)
         return overlap
