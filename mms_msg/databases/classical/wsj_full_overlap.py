@@ -2,10 +2,11 @@ from pathlib import Path
 
 from lazy_dataset.database import JsonDatabase
 from paderbox.io.data_dir import database_jsons
-from mms_msg.composition import get_composition_dataset
-from mms_msg.rir import RIRSampler
-from mms_msg.utils import SMSWSJOffsetSampler, UniformLogWeightSampler
-from mms_msg.utils.wsj import filter_punctuation_pronunciation
+from mms_msg.sampling.source_composition import get_composition_dataset
+from mms_msg.sampling.environment.scaling import UniformLogWeightSampler
+from mms_msg.sampling.environment.rir import RIRSampler
+from mms_msg.sampling.pattern.classical import SMSWSJOffsetSampler
+from mms_msg.databases.single_speaker.wsj.utils import filter_punctuation_pronunciation
 
 
 class WSJ8_kHz_FullOverlap(JsonDatabase):

@@ -1,7 +1,7 @@
 import warnings
 from dataclasses import dataclass
 import numpy as np
-from mms_msg.utils import collate_fn
+from mms_msg.sampling.utils import collate_fn
 import padertorch as pt
 
 

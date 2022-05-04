@@ -11,9 +11,10 @@ from mms_msg import keys
 import padertorch as pt
 import paderbox as pb
 from lazy_dataset import Dataset
-from mms_msg.meeting.overlap_sampler import OverlapSampler, UniformOverlapSampler
-from mms_msg.meeting.scenario_sequence_sampler import sample_balanced
-from mms_msg.utils import update_num_samples, cache_and_normalize_input_dataset, collate_fn, get_rng_example, sampling
+from .overlap_sampler import OverlapSampler, UniformOverlapSampler
+from .scenario_sequence_sampler import sample_balanced
+from mms_msg.sampling.utils import update_num_samples, cache_and_normalize_input_dataset, collate_fn, sequence_sampling
+from mms_msg.sampling.utils.rng import get_rng_example
 
 logger = logging.getLogger('meeting')
 
@@ -69,7 +70,7 @@ class _MeetingSampler:
                 )
                 logger.debug(f'Sampling for scenario "{current_scenario}"')
 
-                current_source_id = sampling.sample_random_round_robin(
+                current_source_id = sequence_sampling.sample_random_round_robin(
                     self.scenario_grouped_dataset[current_scenario].keys(),
                     sequence=[
                         x['example_id'] for x in examples

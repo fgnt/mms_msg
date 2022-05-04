@@ -7,20 +7,6 @@ import paderbox as pb
 from mms_msg import keys
 
 
-def get_rng(*seed: [str, int]) -> np.random.Generator:
-    return pb.utils.random_utils.str_to_random_generator(
-        '_'.join(map(str, seed)))
-
-
-def get_rng_state(*seed: [str, int]) -> np.random.RandomState:
-    return pb.utils.random_utils.str_to_random_state(
-        '_'.join(map(str, seed)))
-
-
-def get_rng_example(example, *seed) -> np.random.Generator:
-    return get_rng(example['dataset'], example['example_id'], *seed)
-
-
 def map_to_spk_id(example, sequence):
     return dict(zip(example['speaker_id'], sequence))
 

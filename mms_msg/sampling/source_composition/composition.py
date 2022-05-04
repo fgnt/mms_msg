@@ -5,7 +5,8 @@ from typing import Iterable
 
 import lazy_dataset
 import paderbox as pb
-from mms_msg.utils import cache_and_normalize_input_dataset, collate_fn, get_rng
+from mms_msg.sampling.utils import cache_and_normalize_input_dataset, collate_fn
+from mms_msg.sampling.utils.rng import get_rng
 from lazy_dataset import Dataset
 import numpy as np
 import logging

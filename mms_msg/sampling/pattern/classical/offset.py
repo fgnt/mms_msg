@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 
 from mms_msg import keys
-from mms_msg.utils.utils import get_rng_example, update_num_samples
+from mms_msg.sampling.utils.rng import get_rng_example
+from mms_msg.sampling.utils.utils import update_num_samples
 
 
 def _assign_offset(example, offset):

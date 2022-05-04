@@ -3,7 +3,7 @@ import operator
 import numpy as np
 
 import tvn.operator
-from mms_msg.utils import sampling
+from mms_msg.sampling.utils import sequence_sampling
 
 
 def sample_random(scenarios: list, examples: list, rng: np.random.Generator):
@@ -17,7 +17,7 @@ def sample_random(scenarios: list, examples: list, rng: np.random.Generator):
             the key `'scenario'`.
         rng: A random number generator
     """
-    return sampling.sample_random(scenarios, None, rng)
+    return sequence_sampling.sample_random(scenarios, None, rng)
 
 
 def sample_round_robin(scenarios: list, examples: list, rng: np.random.Generator):
@@ -45,7 +45,7 @@ def sample_round_robin(scenarios: list, examples: list, rng: np.random.Generator
     c
     a
     """
-    return sampling.sample_round_robin(scenarios, examples, rng)
+    return sequence_sampling.sample_round_robin(scenarios, examples, rng)
 
 
 def sample_random_round_robin(scenarios: list, examples: list, rng: np.random.Generator):
@@ -79,7 +79,7 @@ def sample_random_round_robin(scenarios: list, examples: list, rng: np.random.Ge
     b
     c
     """
-    return sampling.sample_random_round_robin(
+    return sequence_sampling.sample_random_round_robin(
         scenarios, [x['scenario'] for x in examples], rng
     )
 
