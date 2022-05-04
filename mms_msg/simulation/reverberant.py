@@ -1,140 +1,11 @@
-import itertools
-import operator
-from typing import List, Tuple
-
 import numpy as np
-import paderbox as pb
 from scipy.signal import fftconvolve
 
 from mms_msg import keys
-
-from paderbox.array.sparse import SparseArray
-
-
-def pad_sparse(original_source, offset, target_shape):
-    assert len(offset) == len(original_source), (offset, original_source)
-    padded = [
-        SparseArray.from_array_and_onset(x_, offset_, target_shape)
-        for x_, offset_ in zip(original_source, offset)
-    ]
-
-    assert len(padded) == len(original_source), (len(padded), len(original_source))
-    for p in padded:
-        assert p.shape == target_shape, (p.shape, target_shape)
-
-    return padded
+from mms_msg.simulation.anechoic import pad_sparse, get_scale
 
 
-def anechoic_scenario_map_fn(
-        example: dict,
-        *,
-        normalize_sources: bool = True,
-) -> dict:
-    """
-    Constructs the observation and scaled speech source signals for `example`
-    for the single-channel no reverberation case.
-
-    Args:
-        example: Example dict to load
-        normalize_sources: If `True`, the source signals are mean-normalized
-            before processing
-
-    Returns:
-        Dict with the following structure:
-        ```python
-        {
-            'audio_data': {
-                'observation': ndarray,
-                'speechch_source': [ndarray, ndarray, ...],
-                'speech_source': [ndarray, ndarray, ...],
-                'noise_image': ndarray,
-            }
-        }
-        ```
-    """
-    T = example[keys.NUM_SAMPLES][keys.OBSERVATION]
-    s = example[keys.AUDIO_DATA][keys.ORIGINAL_SOURCE]
-    offset = example[keys.OFFSET][keys.ORIGINAL_SOURCE]
-
-    # In some databases (e.g., WSJ) the utterances are not mean normalized. This
-    # leads to jumps when padding with zeros or concatenating recordings.
-    # We mean-normalize here to eliminate these jumps
-    if normalize_sources:
-        s = [s_ - np.mean(s_) for s_ in s]
-
-    # Scale the sources by log_weights. We have to determine the scale based on
-    # the full signal (its standard deviation) and not just the cut out part
-    scale = get_scale(example[keys.LOG_WEIGHTS], s)
-    s = [s_ * scale_ for s_, scale_ in zip(s, scale)]
-
-    # Move and pad speech source to the correct position, use sparse array
-    speech_source = pad_sparse(s, offset, target_shape=(T,))
-
-    # The mix is now simply the sum over the speech sources
-    # mix = np.sum(speech_source, axis=0)
-    mix = sum(speech_source, np.zeros(T, dtype=s[0].dtype))
-
-    example[keys.AUDIO_DATA][keys.OBSERVATION] = mix
-    example[keys.AUDIO_DATA][keys.SPEECH_SOURCE] = speech_source
-
-    # Anechoic case: Speech image == speech source
-    example[keys.AUDIO_DATA][keys.SPEECH_IMAGE] = speech_source
-
-    return example
-
-
-def get_scale(
-        log_weights: List[float], signals: List[np.ndarray]
-) -> np.ndarray:
-    """
-    Computes the normalized scales for all signals so that multiplying them with
-    the scales gives a logarithmic ratio of log_weights.
-
-    Note:
-        We assume that the input signals have roughly the same scaling. We
-        ignore the scaling of the input signals for computing the log_weights to
-        eliminate estimation errors.
-
-        For reference, these are the means of the standard deviations of the
-        WSJ database at 8khz:
-         - `cv_dev93`: 0.004037793712821765
-         - `cv_dev93_5k`: 0.003991357421377814
-         - `test_eval92`: 0.016388209061080895
-         - `test_eval92_5k`: 0.01724772268374945
-         - `test_eval93`: 0.00272367188875606
-         - `test_eval93_5k`: 0.0028981842313541535
-         - `train_si284`: 0.0061338699176127125
-         - `train_si84`: 0.014455413654260894
-
-    Args:
-        log_weights: Target logarithmic weights
-        signals: The signals to scale. They are used for normalization and to
-            obtain the correct shape for the scales.
-
-    Returns:
-        Scale, in the same dimensions as `signals`, but as a numpy array.
-    """
-    assert len(log_weights) == len(signals), (len(log_weights), len(signals))
-    log_weights = np.asarray(log_weights)
-
-    # Note: scale depends on channel mode
-    std = np.maximum(
-        np.array([np.std(s, keepdims=True) for s in signals]),
-        np.finfo(signals[0].dtype).tiny
-    )
-
-    # Bring into the correct shape
-    log_weights = log_weights.reshape((-1,) + (1,) * signals[0].ndim)
-    scale = 10 ** (log_weights / 20) / std
-
-    # divide by 71 to ensure that all values are between -1 and 1 (WHY 71?)
-    # TODO: find a good value for both WSJ and LibriSpeech
-    scale /= 71
-
-    return scale
-
-
-def multi_channel_scenario_map_fn(
+def reverberant_scenario_map_function(
         example,
         *,
         normalize_sources: bool = False,
@@ -143,7 +14,6 @@ def multi_channel_scenario_map_fn(
         early_rir_samples: int = int(8000 * 0.05),  # 50 milli seconds
         details=False,
         channel_slice=None,
-        squeeze_channels=True,
 ):
     """
     Modified copy of the scenario_map_fn from sms_wsj.
@@ -359,60 +229,3 @@ def get_rir_start_sample(h, level_ratio=1e-1):
     # Finds first occurrence of max
     rir_start_sample = np.argmax(larger_than_threshold)
     return rir_start_sample
-
-
-
-def combine_speaker_signals(example):
-    # Group everything by speaker
-    grouped_example = {}
-    extra = {}
-
-    # Whitelists
-    combine_equal = (
-        'speaker_id',
-        'gender',
-    )
-    combine_list = (
-        'transcription',
-        'kaldi_transcription',
-    )
-    combine = combine_equal + combine_list
-    remove = (
-        'log_weights',
-        'audio_path.rir',
-        'source_position',
-        'source_dataset',
-    )
-    blacklist = (
-        'sensor_positions',
-        'room_dimensions',
-        'example_id',
-        'num_speakers',
-        'sound_decay_time',
-        'sensor_position',
-    )
-    speaker_ids = example[keys.SPEAKER_ID]
-    key_fn = operator.itemgetter(0)
-    for k, v in pb.utils.nested.flatten(example).items():
-        if k in combine:
-            if k in combine_equal:
-                def _combine(x):
-                    assert pb.utils.misc.all_equal(x), x
-                    return x[0]
-            elif k in combine_list:
-                _combine = list
-            else:
-                assert False, 'Can never happen'
-
-            assert len(speaker_ids) == len(v), (k, len(speaker_ids), len(v))
-            grouped_example[k] = [
-                _combine(values)
-                for _, values in itertools.groupby(sorted(zip(speaker_ids, v), key=key_fn), key=key_fn)
-            ]
-        elif k in remove:
-            # Don't add to grouped example
-            pass
-        elif k in blacklist:
-            extra[k] = v
-        else:
-            raise RuntimeError(f'key {k} neither in whitelist nor blacklist')

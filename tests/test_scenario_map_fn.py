@@ -3,6 +3,7 @@ import copy
 import numpy as np
 import pytest
 
+import mms_msg.simulation.anechoic
 from mms_msg import scenario
 
 
@@ -54,7 +55,7 @@ def multichannel_example():
 
 def test_sums_anechoic(anechoic_example):
     original_source = copy.deepcopy(anechoic_example['audio_data']['original_source'])
-    out = scenario.anechoic_scenario_map_fn(
+    out = mms_msg.simulation.anechoic.anechoic_scenario_map_fn(
         anechoic_example, normalize_sources=True
     )
 
@@ -152,7 +153,7 @@ def test_sums_multichannel(multichannel_example):
 
 def test_equal(multichannel_example):
     multichannel_example['audio_data']['rir'] = np.ones((2, 1, 1))
-    anechoic_out = scenario.anechoic_scenario_map_fn(
+    anechoic_out = mms_msg.simulation.anechoic.anechoic_scenario_map_fn(
         multichannel_example, normalize_sources=True
     )
     multichannel_out = scenario.multi_channel_scenario_map_fn(
