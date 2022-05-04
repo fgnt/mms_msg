@@ -40,40 +40,42 @@ def anechoic_scenario_map_fn(
         {
             'audio_data': {
                 'observation': ndarray,
-                'speechch_source': [ndarray, ndarray, ...],
+                'speech_image': [ndarray, ndarray, ...],
                 'speech_source': [ndarray, ndarray, ...],
-                'noise_image': ndarray,
             }
         }
         ```
+        where
+         - 'observation': The simulated signal observed at a microphone
+         - 'speech_source': The shifted source signals
+         - 'speech_image': The shifted and scaled source signals. This is
+            typically used as a training target signal
     """
     T = example[keys.NUM_SAMPLES][keys.OBSERVATION]
-    s = example[keys.AUDIO_DATA][keys.ORIGINAL_SOURCE]
+    original_source = example[keys.AUDIO_DATA][keys.ORIGINAL_SOURCE]
     offset = example[keys.OFFSET][keys.ORIGINAL_SOURCE]
 
     # In some databases (e.g., WSJ) the utterances are not mean normalized. This
     # leads to jumps when padding with zeros or concatenating recordings.
     # We mean-normalize here to eliminate these jumps
     if normalize_sources:
-        s = [s_ - np.mean(s_) for s_ in s]
+        original_source = [s_ - np.mean(s_) for s_ in original_source]
 
     # Scale the sources by log_weights. We have to determine the scale based on
     # the full signal (its standard deviation) and not just the cut out part
-    scale = get_scale(example[keys.LOG_WEIGHTS], s)
-    s = [s_ * scale_ for s_, scale_ in zip(s, scale)]
+    scale = get_scale(example[keys.LOG_WEIGHTS], original_source)
+    scaled_source = [s_ * scale_ for s_, scale_ in zip(original_source, scale)]
 
     # Move and pad speech source to the correct position, use sparse array
-    speech_source = pad_sparse(s, offset, target_shape=(T,))
+    speech_source = pad_sparse(original_source, offset, target_shape=(T,))
+    speech_image = pad_sparse(scaled_source, offset, target_shape=(T,))
 
     # The mix is now simply the sum over the speech sources
-    # mix = np.sum(speech_source, axis=0)
-    mix = sum(speech_source, np.zeros(T, dtype=s[0].dtype))
+    mix = sum(speech_source, np.zeros(T, dtype=speech_image[0].dtype))
 
     example[keys.AUDIO_DATA][keys.OBSERVATION] = mix
     example[keys.AUDIO_DATA][keys.SPEECH_SOURCE] = speech_source
-
-    # Anechoic case: Speech image == speech source
-    example[keys.AUDIO_DATA][keys.SPEECH_IMAGE] = speech_source
+    example[keys.AUDIO_DATA][keys.SPEECH_IMAGE] = speech_image
 
     return example
 
