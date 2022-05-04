@@ -28,7 +28,6 @@ def pad_sparse(original_source, offset, target_shape):
 def anechoic_scenario_map_fn(
         example: dict,
         *,
-        snr_range: tuple = (20, 30),
         normalize_sources: bool = True,
 ) -> dict:
     """
@@ -37,8 +36,6 @@ def anechoic_scenario_map_fn(
 
     Args:
         example: Example dict to load
-        snr_range: Range where SNR is sampled from for white microphone noise.
-            This is deterministic; the rng is seeded with the example ID
         normalize_sources: If `True`, the source signals are mean-normalized
             before processing
 
@@ -82,10 +79,6 @@ def anechoic_scenario_map_fn(
 
     # Anechoic case: Speech image == speech source
     example[keys.AUDIO_DATA][keys.SPEECH_IMAGE] = speech_source
-
-    # Add noise if snr_range is specified. RNG depends on example ID (
-    # deterministic)
-    add_microphone_noise(example, snr_range)
 
     return example
 
@@ -141,36 +134,9 @@ def get_scale(
     return scale
 
 
-def add_microphone_noise(example: dict, snr_range: Tuple[int, int]):
-    """
-    Adds microphone noise to `example`. Uses the example ID in `example` for
-    RNG seeding.
-
-    Modifies `example` in place.
-
-    Args:
-        example: The example to add microphone noise to
-        snr_range: Range for uniformly drawing SNR. If `None`, no noise is
-            added.
-    """
-    if snr_range is not None:
-        # TODO: Handle cut signals, segment offset
-        example_id = example[keys.EXAMPLE_ID]
-        rng = pb.utils.random_utils.str_to_random_generator(example_id)
-        example[keys.SNR] = snr = rng.uniform(*snr_range)
-
-        rng = pb.utils.random_utils.str_to_random_generator(example_id)
-        mix = example[keys.AUDIO_DATA][keys.OBSERVATION]
-        n = get_white_noise_for_signal(mix, snr=snr, rng_state=rng)
-        example[keys.AUDIO_DATA][keys.NOISE_IMAGE] = n
-        mix += n
-        example[keys.AUDIO_DATA][keys.OBSERVATION] = mix
-
-
 def multi_channel_scenario_map_fn(
         example,
         *,
-        snr_range: tuple = (20, 30),
         normalize_sources: bool = False,
         add_speech_reverberation_early=True,
         add_speech_reverberation_tail=True,
@@ -194,7 +160,6 @@ def multi_channel_scenario_map_fn(
         early_rir_samples:
         normalize_sources:
         example: Example dictionary.
-        snr_range: required for noise generation
         sync_speech_source: pad and/or cut the source signal to match the
             length of the observations. Considers the offset.
         add_speech_reverberation_early:
@@ -353,32 +318,7 @@ def multi_channel_scenario_map_fn(
 
     clean_mix = sum(audio_data[keys.SPEECH_IMAGE], np.zeros((D, T), dtype=s[0].dtype))
     audio_data[keys.OBSERVATION] = clean_mix
-    add_microphone_noise(example, snr_range)
     return example
-
-
-def get_white_noise_for_signal(
-        time_signal,
-        *,
-        snr,
-        rng_state: np.random.RandomState = np.random
-):
-    """
-    Args:
-        time_signal:
-        snr: SNR or single speaker SNR.
-        rng_state: A random number generator object or np.random
-    """
-    noise_signal = rng_state.normal(size=time_signal.shape)
-
-    power_time_signal = np.mean(time_signal ** 2, keepdims=True)
-    power_noise_signal = np.mean(noise_signal ** 2, keepdims=True)
-    current_snr = 10 * np.log10(power_time_signal / power_noise_signal)
-
-    factor = 10 ** (-(snr - current_snr) / 20)
-
-    noise_signal *= factor
-    return noise_signal
 
 
 def get_rir_start_sample(h, level_ratio=1e-1):
