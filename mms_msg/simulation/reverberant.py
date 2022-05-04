@@ -5,7 +5,7 @@ from mms_msg import keys
 from mms_msg.simulation.anechoic import pad_sparse, get_scale
 
 
-def reverberant_scenario_map_function(
+def reverberant_scenario_map_fn(
         example,
         *,
         normalize_sources: bool = False,

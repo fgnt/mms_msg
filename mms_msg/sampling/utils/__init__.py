@@ -1,3 +1,3 @@
 from . import rng
-from . import sampling
+from . import sequence_sampling
 from .utils import *

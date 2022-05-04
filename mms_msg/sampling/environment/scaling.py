@@ -4,7 +4,7 @@ from typing import List
 
 import numpy as np
 
-from mms_msg.utils.utils import get_rng_example
+from mms_msg.sampling.utils.rng import get_rng_example
 
 logger = logging.getLogger('meeting_generator')
 

@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from lazy_dataset.database import JsonDatabase
+from mms_msg.databases.utils import get_dataset_name_and_rng
 from paderbox.io.data_dir import database_jsons
 from mms_msg.sampling.source_composition import get_composition_dataset
 from mms_msg.sampling.environment.scaling import UniformLogWeightSampler
@@ -26,11 +27,7 @@ class WSJ8_kHz_FullOverlap(JsonDatabase):
         if not isinstance(dataset_name, str):
             return super()._get_dataset(dataset_name)
         else:
-            if 'test' in dataset_name and self.rng is True:
-                raise RuntimeError(
-                    f'Test datasets should not be generated dynamically (i.e., '
-                    f'rng=True)!'
-                )
+            dataset_name, rng = get_dataset_name_and_rng(dataset_name)
             input_ds = super()._get_dataset(dataset_name)
             input_ds = input_ds.filter(filter_punctuation_pronunciation)
 
