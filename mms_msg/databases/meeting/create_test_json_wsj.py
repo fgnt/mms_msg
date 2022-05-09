@@ -20,9 +20,10 @@ ex = Experiment('mixture_generator_create_json')
 
 @ex.config
 def defaults():
-    source_json_path = '/scratch/hpc-prf-nt1/fgnt/jsons/wsj_8k.json'
-    rir_json_path = '/scratch/hpc-prf-nt1/fgnt/db/sms_wsj/rirs/scenarios.json'
-    json_path = 'test_meetings.json'
+    source_json_path = ''
+    rir_json_path = ''
+    assert len(source_json_path) > 0, 'Path to WSJ JSON needs to be set for test meeting generation!'
+    json_path = 'test_meetings_wsj8k.json'
     meeting_duration = 120 * 8000
     num_speakers = (5, 6, 7, 8)
     overlap_conditions = {
