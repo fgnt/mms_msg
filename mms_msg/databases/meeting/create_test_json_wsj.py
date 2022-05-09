@@ -7,12 +7,13 @@ import numpy as np
 from sacred import Experiment
 
 from lazy_dataset.database import JsonDatabase
-from mms_msg import rir_dataset_from_scenarios, UniformLogWeightSampler
-from mms_msg.utils import collate_fn, get_rng
-from mms_msg.meeting.overlap_sampler import UniformOverlapSampler
-from mms_msg.meeting.meeting_sampler import MeetingSampler
+from mms_msg.sampling.environment.rir import rir_dataset_from_scenarios
+from mms_msg.sampling.environment.scaling import UniformLogWeightSampler
+from mms_msg.sampling.utils.utils import collate_fn
+from mms_msg.sampling.utils.rng import get_rng
+from mms_msg.sampling.pattern.meeting.overlap_sampler import UniformOverlapSampler
+from mms_msg.sampling.pattern.meeting.meeting_sampler import MeetingSampler
 import paderbox as pb
-import padertorch as pt
 
 ex = Experiment('mixture_generator_create_json')
 
@@ -36,7 +37,7 @@ def defaults():
             'p_silence': 0.01,
             'maximum_silence': 1 * 8000,
             'maximum_overlap': 8 * 8000,
-            'minimum_overlap': 2 * 8000,
+            'hard_minimum_overlap': 2 * 8000,
         },
 
         "0L": {
@@ -54,6 +55,10 @@ def defaults():
     }
     dataset_name = "test_eval92"
     reverb = True
+    if reverb:
+        assert len(rir_json_path) > 0, 'RIR JSON path needs to be specified for the generation of reverberated meetings.' \
+                                       'Either turn of reverb or execute "mms_msg.databases.reverberation." ' \
+                                       'to generate the required RIRs.'
     n_meetings = 16  # Number of meetings per #spks
 
 
@@ -132,7 +137,7 @@ def main(json_path, overlap_conditions, meeting_duration, source_json_path, rir_
     test_dataset_per_spk = test_dataset.groupby(lambda x: x['speaker_id'])
     available_spk = list(sorted(test_dataset.groupby(lambda x: x['speaker_id']).keys()))
     rng = get_rng(dataset_name)
-    database_dict['datasets'] = { scenario: {} for scenario in overlap_conditions.keys()}
+    database_dict['datasets'] = {scenario: {} for scenario in overlap_conditions.keys()}
 
     assert len(available_spk) >= max(num_speakers)
     for n_spk in num_speakers:
@@ -154,7 +159,7 @@ def main(json_path, overlap_conditions, meeting_duration, source_json_path, rir_
             meeting_dataset = meeting_dataset.map(UniformLogWeightSampler(max_weight=5), )
             if reverb:
                 rir_dataset = rir_dataset_from_scenarios(
-                    scenarios_json='/scratch/hpc-prf-nt1/fgnt/db/sms_wsj/rirs/scenarios.json', dataset_name='train_si284')
+                    scenarios_json=rir_json_path, dataset_name='train_si284')
 
             meeting_dataset = meeting_dataset.map(partial(sample_rirs_for_test_set, rir_dataset=rir_dataset, rng=rng))
             meeting_dataset = meeting_dataset.map(meeting_sampler(test_dataset))
