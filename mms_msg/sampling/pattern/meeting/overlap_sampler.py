@@ -83,8 +83,8 @@ class UniformOverlapSampler(OverlapSampler):
     def __post_init__(self):
         assert self.minimum_silence >= self.margin, (self.minimum_silence, self.margin)
         assert self.minimum_silence < self.maximum_silence, (self.minimum_silence, self.maximum_silence)
-        assert self.soft_minimum_overlap < self.maximum_overlap, (self.soft_minimum_overlap, self.maximum_overlap)
-        assert self.hard_minimum_overlap < self.maximum_overlap, (self.hard_minimum_overlap, self.maximum_overlap)
+        assert self.soft_minimum_overlap <= self.maximum_overlap, (self.soft_minimum_overlap, self.maximum_overlap)
+        assert self.hard_minimum_overlap <= self.maximum_overlap, (self.hard_minimum_overlap, self.maximum_overlap)
 
     def sample_offset(self, examples, maximum_overlap, rng):
         # Sample the shift (relative to the latest speaker_end) with rejection
