@@ -71,7 +71,7 @@ def anechoic_scenario_map_fn(
     speech_image = pad_sparse(scaled_source, offset, target_shape=(T,))
 
     # The mix is now simply the sum over the speech sources
-    mix = sum(speech_source, np.zeros(T, dtype=speech_image[0].dtype))
+    mix = sum(speech_image, np.zeros(T, dtype=speech_image[0].dtype))
 
     example[keys.AUDIO_DATA][keys.OBSERVATION] = mix
     example[keys.AUDIO_DATA][keys.SPEECH_SOURCE] = speech_source
