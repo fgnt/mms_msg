@@ -54,7 +54,7 @@ class WSJ8_kHz_FullOverlap(JsonDatabase):
             ds = ds.map(UniformLogWeightSampler(max_weight=self.max_log_weight))
             ds = ds.map(SMSWSJOffsetSampler())
             if self.white_microphone_noise:
-                ds = ds.map(mms_msg.sampling.environment.noise.UniformSNRSampler())
+                ds = ds.map(mms_msg.sampling.environment.noise.UniformSNRSampler(snr_range=self.white_microphone_noise))
             return ds
 
 
