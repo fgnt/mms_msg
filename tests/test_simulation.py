@@ -139,7 +139,8 @@ def test_sums_multichannel(multichannel_example):
     np.testing.assert_allclose(
         np.stack(audio['speech_image']),
         np.stack(audio['speech_reverberation_early'])
-        + np.stack(audio['speech_reverberation_tail'])
+        + np.stack(audio['speech_reverberation_tail']),
+        rtol=1e-6
     )
 
     # Check scaling of noise is correct
