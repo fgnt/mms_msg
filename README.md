@@ -34,11 +34,18 @@ Adjustable parameters are:
  * **Source database** (e.g. WSJ, LibriSpeech): Any audio database consisting of clean, single-speaker utterances 
   that provides access to speaker identitites can be used to simulate meeting data. Any additional information like
   transcriptions are kept and can still be used
- * **Number of participants**: 
- * **Acitivity distribution per speaker**:
- * **Amount/distribution of silence**:
- * **Amount/distribution of overlap**:
- * **Background Noise**:
+ * **Number of participants**:  The number of speakers per meeting can be freely chosen. Furthermore, it is possible to
+ to set a range, so that meetigns with varying numbers of active speakers are generated.
+ * **Activity distribution per speaker**: Aside from fully random sampling algorithms to sample the next active speaker of
+   a meeting, we also provide an activity-based speaker sampling. Here, the activity distribution per speaker (i.e. the speech ratio of each speaker)
+ can be freely specified. Over the course of the meeting, the activity distribution will converge to the desired ratio,
+ so that the generation of highly asymmetric meetings (e.g. lecture situations) are possible to be generated
+ * **Amount/distribution of silence and overlap**:
+   The probability and length of silence and/or overlap can be freely chosen. Furthermore, the distribution from which to sample the silence
+   also can be specified by the user
+ * **Background noise**: We offer an easy framework to add external influences like background noise to your mixtures.
+ Currently, a sampling for static background noise is implemented. The addition of more realistic environmental noises 
+ (e.g. from WHAM!) is supported in theory. Sampling functions for this use-case will be implemented in the future. 
  * **Reverberation/Scaling**:
 
 ### Modular Design
