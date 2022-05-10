@@ -1,1 +1,1 @@
-from full_overlap import WSJ2Mix
+from .full_overlap import WSJ2Mix, SMSWSJ
