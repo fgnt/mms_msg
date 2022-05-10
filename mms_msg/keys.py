@@ -109,3 +109,25 @@ PREDICT = 'infer'
 
 # For speaker verification (e.g., VoxCeleb)
 TRIALS = 'trials'
+
+# Speaker-wise keys for examples after the scenario_map_fn (and before any
+# transform_fn)
+
+def _join(*keys: str) -> str:
+    return '.'.join(keys)
+
+speaker_wise_keys = [
+    _join(OFFSET, ORIGINAL_SOURCE),
+    _join(NUM_SAMPLES, ORIGINAL_SOURCE),
+    _join(AUDIO_DATA, ORIGINAL_SOURCE),
+    _join(AUDIO_DATA, SPEECH_SOURCE),
+    _join(AUDIO_DATA, SPEECH_IMAGE),
+    _join(AUDIO_DATA, RIR),
+    _join(AUDIO_PATH, ORIGINAL_SOURCE),
+    _join(AUDIO_PATH, RIR),
+    _join(NUM_SAMPLES, SPEECH_SOURCE),
+    GENDER,
+    LOG_WEIGHTS,
+    SPEAKER_ID,
+    TRANSCRIPTION,
+]
