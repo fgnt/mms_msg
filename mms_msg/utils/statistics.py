@@ -56,6 +56,7 @@ def get_activity_from_signal(example, signal_name='original_source'):
     example['activity'] = array_intervals
     return example
 
+
 def get_activity_from_vad(vad, vad_shift, vad_window, signal_name='original_source'):
     """
     Returns the activity intervals for each speaker in an example.

@@ -29,7 +29,17 @@ procesing and transcription system in as many environments as possible.
 ## Features
 
 ### Generation of Meeting data
-
+The core aspect of MMS-MSG is the generation of meeting-style data. The meetings are generated in a modular fashion.
+Adjustable parameters are:
+ * **Source database** (e.g. WSJ, LibriSpeech): Any audio database consisting of clean, single-speaker utterances 
+  that provides access to speaker identitites can be used to simulate meeting data. Any additional information like
+  transcriptions are kept and can still be used
+ * **Number of participants**: 
+ * **Acitivity distribution per speaker**:
+ * **Amount/distribution of silence**:
+ * **Amount/distribution of overlap**:
+ * **Background Noise**:
+ * **Reverberation/Scaling**:
 
 ### Modular Design
 The sampling process is modularized, so that many different scenarios can be created by slightly changing the sampling 
