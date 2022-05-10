@@ -8,7 +8,7 @@ from mms_msg.simulation.anechoic import pad_sparse, get_scale
 def reverberant_scenario_map_fn(
         example,
         *,
-        normalize_sources: bool = False,
+        normalize_sources: bool = True,
         add_speech_reverberation_early=True,
         add_speech_reverberation_tail=True,
         early_rir_samples: int = int(8000 * 0.05),  # 50 milli seconds
