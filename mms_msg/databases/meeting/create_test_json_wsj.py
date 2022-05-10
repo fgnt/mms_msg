@@ -8,7 +8,7 @@ from sacred import Experiment
 
 from lazy_dataset.database import JsonDatabase
 from mms_msg.sampling.environment.rir import rir_dataset_from_scenarios
-from mms_msg.sampling.environment.scaling import UniformLogWeightSampler
+from mms_msg.sampling.environment.scaling import UniformScalingSampler
 from mms_msg.sampling.utils.utils import collate_fn
 from mms_msg.sampling.utils.rng import get_rng
 from mms_msg.sampling.pattern.meeting.overlap_sampler import UniformOverlapSampler
@@ -157,7 +157,7 @@ def main(json_path, overlap_conditions, meeting_duration, source_json_path, rir_
 
             meeting_sampler = MeetingSampler(duration=meeting_duration, overlap_sampler=overlap_sampler_class)
             meeting_dataset = lazy_dataset.new(_speaker_composition_list_to_dict(start_examples, dataset_name))
-            meeting_dataset = meeting_dataset.map(UniformLogWeightSampler(max_weight=5), )
+            meeting_dataset = meeting_dataset.map(UniformScalingSampler(max_weight=5), )
             if reverb:
                 rir_dataset = rir_dataset_from_scenarios(
                     scenarios_json=rir_json_path, dataset_name='train_si284')

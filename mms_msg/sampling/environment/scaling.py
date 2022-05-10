@@ -10,9 +10,9 @@ logger = logging.getLogger('meeting_generator')
 
 
 __all__ = [
-    'sample_log_weights_uniform',
-    'UniformLogWeightSampler',
-    'ConstantLogWeightSampler',
+    'sample_scaling_uniform',
+    'UniformScalingSampler',
+    'ConstantScalingSampler',
 ]
 
 
@@ -21,7 +21,7 @@ def _normalize_log_weights(weights):
     return weights.tolist()
 
 
-def sample_log_weights_uniform(example, *, max_weight: float = 5):
+def sample_scaling_uniform(example, *, max_weight: float = 5):
     """
     Gives each utterance a different log_weight, sampled from a uniform
     distribution between 0 and `max_weight` and mean-normalized.
@@ -33,15 +33,15 @@ def sample_log_weights_uniform(example, *, max_weight: float = 5):
 
 
 @dataclass(frozen=True)
-class UniformLogWeightSampler:
+class UniformScalingSampler:
     max_weight: float = 5
 
     def __call__(self, example):
-        return sample_log_weights_uniform(example, max_weight=self.max_weight)
+        return sample_scaling_uniform(example, max_weight=self.max_weight)
 
 
 @dataclass(frozen=True)
-class ConstantLogWeightSampler:
+class ConstantScalingSampler:
     weights: [float, List[float]] = 0.
 
     def __call__(self, example):

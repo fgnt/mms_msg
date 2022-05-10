@@ -60,7 +60,7 @@ def test_sums_anechoic(anechoic_example):
     out = mms_msg.simulation.anechoic.anechoic_scenario_map_fn(
         anechoic_example, normalize_sources=True
     )
-    out = mms_msg.simulation.noise.white_gaussian_noise(out)
+    out = mms_msg.simulation.noise.white_microphone_noise(out)
 
     audio = out['audio_data']
 
@@ -103,7 +103,7 @@ def test_sums_multichannel(multichannel_example):
     out = mms_msg.simulation.reverberant.reverberant_scenario_map_fn(
         multichannel_example, normalize_sources=True
     )
-    out = mms_msg.simulation.noise.white_gaussian_noise(out)
+    out = mms_msg.simulation.noise.white_microphone_noise(out)
 
     audio = out['audio_data']
 
@@ -156,11 +156,11 @@ def test_equal(multichannel_example):
     anechoic_out = mms_msg.simulation.anechoic.anechoic_scenario_map_fn(
         multichannel_example, normalize_sources=True
     )
-    anechoic_out = mms_msg.simulation.noise.white_gaussian_noise(anechoic_out)
+    anechoic_out = mms_msg.simulation.noise.white_microphone_noise(anechoic_out)
     multichannel_out = mms_msg.simulation.reverberant.reverberant_scenario_map_fn(
         multichannel_example, normalize_sources=True
     )
-    multichannel_out = mms_msg.simulation.noise.white_gaussian_noise(multichannel_out)
+    multichannel_out = mms_msg.simulation.noise.white_microphone_noise(multichannel_out)
 
     anechoic_audio = anechoic_out['audio_data']
     multichannel_audio = multichannel_out['audio_data']

@@ -28,7 +28,7 @@ def get_white_noise_for_signal(
     return noise_signal
 
 
-def white_gaussian_noise(example: dict) -> dict:
+def white_microphone_noise(example: dict) -> dict:
     """
     Adds microphone noise to `example`.
 

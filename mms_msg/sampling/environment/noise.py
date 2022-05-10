@@ -5,18 +5,17 @@ from typing import Tuple
 from mms_msg.sampling.utils.rng import get_rng_example
 
 
-def sample_uniform_snr(example, *, snr_range=(20, 30)):
-    if len(snr_range) != 2:
-        raise ValueError(f'Invalid snr_range={snr_range}')
+def sample_uniform_snr(example, *, min_snr: float = 20, max_snr: float = 30):
     example['snr'] = float(
-        get_rng_example(example, 'snr').uniform(*snr_range, size=1)
+        get_rng_example(example, 'snr').uniform(min_snr, max_snr, size=1)
     )
     return example
 
 
 @dataclass(frozen=True)
 class UniformSNRSampler:
-    snr_range: Tuple[float, float] = (20, 30)
+    min_snr: float = 20
+    max_snr: float = 20
 
     def __call__(self, example):
-        return sample_uniform_snr(example, snr_range=self.snr_range)
+        return sample_uniform_snr(example, min_snr=self.min_snr, max_snr=self.max_snr)
