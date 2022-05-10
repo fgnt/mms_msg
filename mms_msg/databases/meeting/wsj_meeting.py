@@ -1,38 +1,13 @@
 from pathlib import Path
 
 from lazy_dataset.database import JsonDatabase
+from mms_msg.databases.utils import get_dataset_name_and_rng
 from paderbox.io.data_dir import database_jsons
-from mms_msg.composition import get_composition_dataset
-from mms_msg.rir import RIRSampler
-from mms_msg.utils import UniformLogWeightSampler
-from mms_msg.utils.wsj import filter_punctuation_pronunciation
-from mms_msg.meeting import MeetingSampler
-
-
-def get_dataset_name_and_rng(dataset_name):
-    if 'rng' in dataset_name:
-        if 'test' in dataset_name:
-            raise ValueError(
-                f'Dynamic mixing should not be activated on test '
-                f'datasets to ensure reproducibility (i.e., no "rng" '
-                f'in the dataset name: {dataset_name})'
-            )
-
-        try:
-            dataset_name, seed = dataset_name.split('_rng')
-        except ValueError:
-            raise ValueError(
-                f'Expected "<original_dataset_name>_rng[seed]" '
-                f'(e.g., train_si284_rng), not {dataset_name}'
-            ) from None
-
-        if seed != '':
-            rng = int(seed)
-        else:
-            rng = True
-    else:
-        rng = False
-    return dataset_name, rng
+from mms_msg.sampling.source_composition import get_composition_dataset
+from mms_msg.sampling.environment.rir import RIRSampler
+from mms_msg.sampling.environment.scaling import UniformScalingSampler
+from mms_msg.databases.single_speaker.wsj.utils import filter_punctuation_pronunciation
+from mms_msg.sampling.pattern.meeting import MeetingSampler
 
 
 class WSJ_8kHz_Meeting(JsonDatabase):
@@ -78,7 +53,7 @@ class WSJ_8kHz_Meeting(JsonDatabase):
                 num_speakers=self.num_speakers,
                 rng=rng
             )
-            ds = ds.map(UniformLogWeightSampler(max_weight=self.max_log_weight))
+            ds = ds.map(UniformScalingSampler(max_weight=self.max_log_weight))
             if self.rir_scenarios_json_path is not None:
                 ds = ds.map(RIRSampler.from_scenarios_json(
                     self.rir_scenarios_json_path, dataset_name

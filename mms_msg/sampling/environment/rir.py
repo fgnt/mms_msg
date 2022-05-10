@@ -3,32 +3,7 @@ from pathlib import Path
 
 import lazy_dataset
 from lazy_dataset.database import JsonDatabase
-
-
-def rir_dataset_from_scenarios(
-        scenarios_json: [Path, str], dataset_name: str
-) -> lazy_dataset.Dataset:
-    rir_dataset = JsonDatabase(scenarios_json).get_dataset(dataset_name)
-
-    database_path = Path(scenarios_json).parent
-
-    def _add_audio_path(example):
-        if 'audio_path' not in example:
-            example['audio_path'] = {}
-        # Scanning the file system is slow
-        # example['audio_path']['rir'] = sorted(
-        #     (
-        #             database_path / dataset_name / example['example_id']
-        #     ).glob('*.wav')
-        # )
-        example['audio_path']['rir'] = [
-            database_path / dataset_name / example['example_id'] / f'h_{idx}.wav'
-            for idx in range(len(example['source_position'][0]))
-        ]
-        return example
-
-    rir_dataset = rir_dataset.map(_add_audio_path)
-    return rir_dataset
+from mms_msg.databases.reverberation.sms_wsj import SMSWSJRIRDatabase
 
 
 def sample_rirs(example: dict, *, rir_dataset: lazy_dataset.Dataset):
@@ -52,7 +27,7 @@ class RIRSampler:
 
     @classmethod
     def from_scenarios_json(cls, scenarios_json, dataset_name):
-        return cls(rir_dataset_from_scenarios(scenarios_json, dataset_name))
+        return cls(SMSWSJRIRDatabase(scenarios_json).get_dataset(dataset_name))
 
     def __call__(self, example: dict) -> dict:
         return sample_rirs(example, rir_dataset=self.rir_dataset)

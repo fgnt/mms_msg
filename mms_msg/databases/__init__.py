@@ -1,2 +1,4 @@
-from .wsj_full_overlap import WSJ8_kHz_FullOverlap, SpatializedWSJ8_kHz_FullOverlap
-from .wsj_meeting import WSJ_8kHz_Meeting
+from . import classical
+from . import meeting
+from . import reverberation
+from . import single_speaker

@@ -30,8 +30,8 @@ def test_initial_examples():
     input_dataset = _generate_input_dataset()
 
     # Build generator dataset
-    ds = mms_msg.get_composition_dataset(input_dataset, num_speakers_in_meeting)
-    ds = ds.map(mms_msg.MeetingSampler(duration=30*8000)(input_dataset))
+    ds = mms_msg.sampling.source_composition.get_composition_dataset(input_dataset, num_speakers_in_meeting)
+    ds = ds.map(mms_msg.sampling.pattern.meeting.MeetingSampler(duration=30*8000)(input_dataset))
 
     # Check that distribution of speakers is the same as input dataset
     assert len(ds) == len(input_dataset)
@@ -50,10 +50,10 @@ def test_deterministic():
     input_dataset = _generate_input_dataset()
 
     # Build generator dataset
-    ds1 = mms_msg.get_composition_dataset(input_dataset, 2)
-    ds1 = ds1.map(mms_msg.MeetingSampler(duration=30 * 8000)(input_dataset))
+    ds1 = mms_msg.sampling.source_composition.get_composition_dataset(input_dataset, 2)
+    ds1 = ds1.map(mms_msg.sampling.pattern.meeting.MeetingSampler(duration=30 * 8000)(input_dataset))
 
-    ds2 = mms_msg.get_composition_dataset(input_dataset, 2)
-    ds2 = ds2.map(mms_msg.MeetingSampler(duration=30 * 8000)(input_dataset))
+    ds2 = mms_msg.sampling.source_composition.get_composition_dataset(input_dataset, 2)
+    ds2 = ds2.map(mms_msg.sampling.pattern.meeting.MeetingSampler(duration=30 * 8000)(input_dataset))
 
     assert list(ds1) == list(ds2)

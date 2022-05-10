@@ -5,7 +5,8 @@ from typing import Iterable
 
 import lazy_dataset
 import paderbox as pb
-from mms_msg.utils import cache_and_normalize_input_dataset, collate_fn, get_rng
+from mms_msg.sampling.utils import cache_and_normalize_input_dataset, collate_fn
+from mms_msg.sampling.utils.rng import get_rng
 from lazy_dataset import Dataset
 import numpy as np
 import logging
@@ -305,6 +306,10 @@ def extend_composition_example_greedy(
 
     assert example_compositions.ndim == 2, example_compositions.shape
 
+    given_speaker_ids = [
+        set([speaker_ids[c_] for c_ in c]) for c in example_compositions
+    ]
+
     candidates = np.arange(len(speaker_ids), dtype=np.int)
     speaker_ids = np.array(speaker_ids)
     for _ in range(tries):
@@ -313,10 +318,7 @@ def extend_composition_example_greedy(
         try:
             for i in range(len(candidates)):
                 for _ in range(tries):
-                    if any([
-                        speaker_ids[entry_a] == speaker_ids[candidates[i]]
-                        for entry_a in example_compositions[i]
-                    ]):
+                    if speaker_ids[candidates[i]] in given_speaker_ids[i]:
                         candidates[i:] = rng.permutation(candidates[i:])
                     else:
                         break

@@ -3,8 +3,7 @@ import copy
 import numpy as np
 import pytest
 
-from mms_msg import scenario
-
+import mms_msg
 
 @pytest.fixture
 def anechoic_example():
@@ -24,7 +23,9 @@ def anechoic_example():
         'log_weights': [0.1, 0.5],
         'offset': {
             'original_source': [2000, 0],
-        }
+        },
+        'snr': 10,
+        'dataset': 'test',
     }
 
 
@@ -49,14 +50,17 @@ def multichannel_example():
             'original_source': [2000, 0],
         },
         'speaker_id': ['a', 'b'],
+        'snr': 10,
+        'dataset': 'test',
     }
 
 
 def test_sums_anechoic(anechoic_example):
     original_source = copy.deepcopy(anechoic_example['audio_data']['original_source'])
-    out = scenario.anechoic_scenario_map_fn(
+    out = mms_msg.simulation.anechoic.anechoic_scenario_map_fn(
         anechoic_example, normalize_sources=True
     )
+    out = mms_msg.simulation.noise.white_microphone_noise(out)
 
     audio = out['audio_data']
 
@@ -77,10 +81,6 @@ def test_sums_anechoic(anechoic_example):
     # Check that things that should sum up actually sum up to the correct
     # signal
     np.testing.assert_allclose(
-        audio['speech_image'],
-        audio['speech_source'],
-    )
-    np.testing.assert_allclose(
         audio['observation'],
         np.sum(audio['speech_image'], axis=0) + audio['noise_image']
     )
@@ -100,9 +100,10 @@ def test_sums_anechoic(anechoic_example):
 
 def test_sums_multichannel(multichannel_example):
     original_source = copy.deepcopy(multichannel_example['audio_data']['original_source'])
-    out = scenario.multi_channel_scenario_map_fn(
+    out = mms_msg.simulation.reverberant.reverberant_scenario_map_fn(
         multichannel_example, normalize_sources=True
     )
+    out = mms_msg.simulation.noise.white_microphone_noise(out)
 
     audio = out['audio_data']
 
@@ -138,7 +139,8 @@ def test_sums_multichannel(multichannel_example):
     np.testing.assert_allclose(
         np.stack(audio['speech_image']),
         np.stack(audio['speech_reverberation_early'])
-        + np.stack(audio['speech_reverberation_tail'])
+        + np.stack(audio['speech_reverberation_tail']),
+        rtol=1e-6
     )
 
     # Check scaling of noise is correct
@@ -152,12 +154,14 @@ def test_sums_multichannel(multichannel_example):
 
 def test_equal(multichannel_example):
     multichannel_example['audio_data']['rir'] = np.ones((2, 1, 1))
-    anechoic_out = scenario.anechoic_scenario_map_fn(
+    anechoic_out = mms_msg.simulation.anechoic.anechoic_scenario_map_fn(
         multichannel_example, normalize_sources=True
     )
-    multichannel_out = scenario.multi_channel_scenario_map_fn(
+    anechoic_out = mms_msg.simulation.noise.white_microphone_noise(anechoic_out)
+    multichannel_out = mms_msg.simulation.reverberant.reverberant_scenario_map_fn(
         multichannel_example, normalize_sources=True
     )
+    multichannel_out = mms_msg.simulation.noise.white_microphone_noise(multichannel_out)
 
     anechoic_audio = anechoic_out['audio_data']
     multichannel_audio = multichannel_out['audio_data']
