@@ -7,13 +7,14 @@ import numpy as np
 from sacred import Experiment
 
 from lazy_dataset.database import JsonDatabase
-from mms_msg.sampling.environment.rir import rir_dataset_from_scenarios
 from mms_msg.sampling.environment.scaling import UniformScalingSampler
 from mms_msg.sampling.utils.utils import collate_fn
 from mms_msg.sampling.utils.rng import get_rng
 from mms_msg.sampling.pattern.meeting.overlap_sampler import UniformOverlapSampler
 from mms_msg.sampling.pattern.meeting.meeting_sampler import MeetingSampler
 import paderbox as pb
+from .wsj_meeting import OVERLAP_SETTINGS
+from ..reverberation.sms_wsj import SMSWSJRIRDatabase
 
 ex = Experiment('mixture_generator_create_json')
 
@@ -26,28 +27,8 @@ def defaults():
     json_path = 'test_meetings_wsj8k.json'
     meeting_duration = 120 * 8000
     num_speakers = (5, 6, 7, 8)
-    overlap_conditions = {
-        "medium_overlap": {
-            'max_concurrent_spk': 2,
-            'p_silence': 0.1,
-            'maximum_silence': 2 * 8000,
-            'maximum_overlap': 8 * 8000,
-        },
-        "high_overlap": {
-            'max_concurrent_spk': 2,
-            'p_silence': 0.01,
-            'maximum_silence': 1 * 8000,
-            'maximum_overlap': 8 * 8000,
-            'hard_minimum_overlap': 2 * 8000,
-        },
-
-        "no_ov": {
-            'max_concurrent_spk': 2,
-            'p_silence': 1,
-            'maximum_silence': 2 * 8000,
-            'maximum_overlap': 0,
-        },
-    }
+    overlap_conditions = dict(no_ov=OVERLAP_SETTINGS['no_ov'], medium_overlap=OVERLAP_SETTINGS['medium_overlap'],
+                              high_overlap=OVERLAP_SETTINGS['high_ov'])
     dataset_name = "test_eval92"
     reverb = True
     if reverb:
@@ -104,6 +85,7 @@ def _speaker_composition_list_to_dict(
         base[example_id] = example
     return base
 
+
 def sample_rirs_for_test_set(example,rir_dataset, rng):
 
     rir_example = rir_dataset.random_choice(rng_state=rng)
@@ -116,6 +98,7 @@ def sample_rirs_for_test_set(example,rir_dataset, rng):
     example['sensor_position'] = rir_example['sensor_position']
     example['source_position'] = [s[:num_speakers] for s in rir_example['source_position']]
     return example
+
 
 @ex.automain
 def main(json_path, overlap_conditions, meeting_duration, source_json_path, rir_json_path,
@@ -153,8 +136,8 @@ def main(json_path, overlap_conditions, meeting_duration, source_json_path, rir_
             meeting_dataset = lazy_dataset.new(_speaker_composition_list_to_dict(start_examples, dataset_name))
             meeting_dataset = meeting_dataset.map(UniformScalingSampler(max_weight=5), )
             if reverb:
-                rir_dataset = rir_dataset_from_scenarios(
-                    scenarios_json=rir_json_path, dataset_name='train_si284')
+                rir_dataset = SMSWSJRIRDatabase(
+                    scenarios_json=rir_json_path).get_dataset('test_eval92')
 
             meeting_dataset = meeting_dataset.map(partial(sample_rirs_for_test_set, rir_dataset=rir_dataset, rng=rng))
             meeting_dataset = meeting_dataset.map(meeting_sampler(test_dataset))
