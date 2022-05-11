@@ -15,7 +15,7 @@ def sample_uniform_snr(example, *, min_snr: float = 20, max_snr: float = 30):
 @dataclass(frozen=True)
 class UniformSNRSampler:
     min_snr: float = 20
-    max_snr: float = 20
+    max_snr: float = 30
 
     def __call__(self, example):
         return sample_uniform_snr(example, min_snr=self.min_snr, max_snr=self.max_snr)
