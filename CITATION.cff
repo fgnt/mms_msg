@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "von Neumann"
+  given-names: "Thilo"
+  orcid: "https://orcid.org/0000-0002-7717-8670"
+- family-names: "Cord-Landwehr"
+  given-names: "Tobias"
+title: "MMS-MSG"
+version: 1.0.0
+date-released: 2022-05-10
+url: "https://github.com/fgnt/mms_msg"
+preferred-citation:
+  type: proceedings
+  authors:
+  - family-names: "Cord-Landwehr"
+    given-names: "Tobias"
+  - family-names: "von Neumann"
+    given-names: "Thilo"
+    orcid: "https://orcid.org/0000-0002-7717-8670"
+  - family-names: "Boeddeker"
+    given-names: "Christoph"
+  - family-names: "Haeb-Umbach"
+    given-names: "Reinhold"
+  conference:
+    name: "IWAENC 2022"
+  title: "MMS-MSG: A Multi-purpose Multi-Speaker Mixture Signal Generator"
+  year: 2022
