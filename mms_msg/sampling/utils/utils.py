@@ -76,13 +76,6 @@ def cache_and_normalize_input_dataset(ds):
 
     # Check if it has keys
     try:
-        items = ds.items()
-    except (AttributeError, NotImplementedError):
-        # No keys, use example_id key
-        for example in ds:
-            if keys.EXAMPLE_ID not in example:
-                raise ValueError(f'Missing key: {keys.EXAMPLE_ID}')
-    else:
         # Keys, use keys
         def add_example_id(example, key):
             if keys.EXAMPLE_ID in example:
@@ -94,7 +87,14 @@ def cache_and_normalize_input_dataset(ds):
             else:
                 example[keys.EXAMPLE_ID] = key
             return example
-        ds = {key: add_example_id(example, key) for key, example in items}
+
+        ds = {key: add_example_id(example, key) for key, example in ds.items()}
+    except (AttributeError, NotImplementedError, lazy_dataset.core.ItemsNotDefined):
+        # No keys, use example_id key
+        for example in ds:
+            if keys.EXAMPLE_ID not in example:
+                raise ValueError(f'Missing key: {keys.EXAMPLE_ID}')
+        ds = {ex[keys.EXAMPLE_ID]: ex for ex in ds}
 
     # Cache & sort for reproducibility
     ds = lazy_dataset.from_dict(ds)
