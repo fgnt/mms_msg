@@ -27,7 +27,7 @@ def defaults():
     meeting_duration = 120 * 8000
     num_speakers = (5, 6, 7, 8)
     overlap_conditions = {
-        "normal_overlap": {
+        "medium_overlap": {
             'max_concurrent_spk': 2,
             'p_silence': 0.1,
             'maximum_silence': 2 * 8000,
@@ -41,16 +41,10 @@ def defaults():
             'hard_minimum_overlap': 2 * 8000,
         },
 
-        "0L": {
+        "no_ov": {
             'max_concurrent_spk': 2,
             'p_silence': 1,
             'maximum_silence': 2 * 8000,
-            'maximum_overlap': 0,
-        },
-        "0S": {
-            'max_concurrent_spk': 2,
-            'p_silence': 1,
-            'maximum_silence': 0.5 * 8000,
             'maximum_overlap': 0,
         },
     }
