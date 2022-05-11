@@ -5,7 +5,7 @@ from mms_msg.sampling.utils.rng import get_rng_example
 from mms_msg.sampling.utils.utils import update_num_samples
 
 
-def _assign_offset(example, offset):
+def assign_offset(example, offset):
     assert keys.OFFSET not in example
     example[keys.OFFSET] = {keys.ORIGINAL_SOURCE: offset}
     update_num_samples(example)
@@ -21,7 +21,7 @@ def sample_offsets_sms_wsj(example):
         excess_samples = total_length - ns
         assert excess_samples >= 0, excess_samples
         offset.append(rng.integers(0, excess_samples + 1))
-    _assign_offset(example, offset)
+    assign_offset(example, offset)
     return example
 
 
@@ -29,7 +29,7 @@ def sample_offsets_constant(example, *, offsets):
     if not isinstance(offsets, (list, tuple)):
         offsets = [offsets] * len(example['speaker_id'])
     offset = list(offsets[:len(example['speaker_id'])])
-    _assign_offset(example, offset)
+    assign_offset(example, offset)
     return example
 
 
@@ -54,7 +54,7 @@ def sample_partial_overlap(example, *, minimum_overlap, maximum_overlap):
     assert len(num_samples) == 2, (len(num_samples), num_samples)
     overlap_samples = sum(num_samples)*overlap / (1 + overlap)
     offset = [0, max(num_samples[0] - overlap_samples, 0)]
-    _assign_offset(example, offset)
+    assign_offset(example, offset)
     return example
 
 

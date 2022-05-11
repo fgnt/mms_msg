@@ -70,13 +70,34 @@ def normalize_example(example):
 
 
 def cache_and_normalize_input_dataset(ds):
-    if isinstance(ds, dict):
-        # Use key as example_id, but overwrite with explicit example_id entry
-        ds = [{'example_id': k, **x} for k, x in ds.items()]
+    # Infer example IDs. When
+    #  - dict or DictDataset: Use keys
+    #  - other iterable: Expect an example_id key
+
+    # Check if it has keys
+    try:
+        items = ds.items()
+    except (AttributeError, NotImplementedError):
+        # No keys, use example_id key
+        for example in ds:
+            if keys.EXAMPLE_ID not in example:
+                raise ValueError(f'Missing key: {keys.EXAMPLE_ID}')
+    else:
+        # Keys, use keys
+        def add_example_id(example, key):
+            if keys.EXAMPLE_ID in example:
+                if example[keys.EXAMPLE_ID] != key:
+                    raise ValueError(
+                        f'Example ID in example ({example[keys.EXAMPLE_ID]}) '
+                        f'doesn\'t match the collection key ({key})!'
+                    )
+            else:
+                example[keys.EXAMPLE_ID] = key
+            return example
+        ds = {key: add_example_id(example, key) for key, example in items}
+
     # Cache & sort for reproducibility
-    ds = lazy_dataset.from_dict({
-        ex['example_id']: ex for ex in ds
-    })
+    ds = lazy_dataset.from_dict(ds)
     ds = ds.sort().map(normalize_example)
     return ds
 
