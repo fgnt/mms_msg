@@ -12,7 +12,7 @@ Baseline model will be provided on a later date.
 
 ---
 MMS-MSG is a highly modular and flexible framework for the generation of speech mixtures.
-It extends the code-base of the [SMS-WSJ]() database 
+It extends the code-base of the [SMS-WSJ](https://github.com/fgnt/sms_wsj) database 
 for mixture signal generation to be able to generate both meeting-sytle speech mixtures and 
 mixture signals corresponding to classical spech mixture databases.
 
@@ -33,20 +33,25 @@ The core aspect of MMS-MSG is the generation of meeting-style data. The meetings
 Adjustable parameters are:
  * **Source database** (e.g. WSJ, LibriSpeech): Any audio database consisting of clean, single-speaker utterances 
   that provides access to speaker identitites can be used to simulate meeting data. Any additional information like
-  transcriptions are kept and can still be used
+  transcriptions are kept and can still be used.
  * **Number of participants**:  The number of speakers per meeting can be freely chosen. Furthermore, it is possible to
  to set a range, so that meetigns with varying numbers of active speakers are generated.
  * **Activity distribution per speaker**: Aside from fully random sampling algorithms to sample the next active speaker of
    a meeting, we also provide an activity-based speaker sampling. Here, the activity distribution per speaker (i.e. the speech ratio of each speaker)
  can be freely specified. Over the course of the meeting, the activity distribution will converge to the desired ratio,
  so that the generation of highly asymmetric meetings (e.g. lecture situations) are possible to be generated
- * **Amount/distribution of silence and overlap**:
-   The probability and length of silence and/or overlap can be freely chosen. Furthermore, the distribution from which to sample the silence
-   also can be specified by the user
+ * **Amount & distribution of silence/overlap**:
+   The probability and length of silence and/or overlap between consecutive utterances of a meeting 
+   can be freely chosen. Furthermore, the distribution from which to sample the silence
+   also can be specified by the user.
  * **Background noise**: We offer an easy framework to add external influences like background noise to your mixtures.
  Currently, a sampling for static background noise is implemented. The addition of more realistic environmental noises 
  (e.g. from WHAM!) is supported in theory. Sampling functions for this use-case will be implemented in the future. 
  * **Reverberation/Scaling**:
+ MMS-MSG natively supports the simulation of reverberated meetings. Here, any additional database that provides room 
+ impulse responses can be used to reverberate the utterances of each speaker.
+ While the currently implemented modules only support static speaker positions,
+ speakers can theoretically change their position for each utterance.
 
 ### Modular Design
 The sampling process is modularized, so that many scenarios can be created by slightly changing the sampling 
@@ -66,19 +71,19 @@ single utterances of multiple speakers either partially or fully overlap with ea
 By using MMS-MSG to generate training data for these databases, we offer a native support of dynamic mixing.
 
 Supported speech mixture databases:
- * [WSJ0-2mix/WSJ0-3mix]()
- * [LibriMix]()
- * [SMS-WSJ]()
- * [Partially Overlapped WSJ]()
+ * [WSJ0-2mix/WSJ0-3mix](https://arxiv.org/abs/1508.04306)
+ * [LibriMix](https://arxiv.org/abs/2005.11262)
+ * [SMS-WSJ](https://arxiv.org/abs/1910.13934)
+ * [Partially Overlapped WSJ](https://www.microsoft.com/en-us/research/uploads/prod/2018/04/ICASSP2018-5ad5f1b79bd16.pdf)
 
 Planned:
- * [WHAM!]()
- * [WHAMR!]()
+ * [WHAM! & WHAMR!](https://wham.whisper.ai/)
+
 
 ## Planned Features:
   * WHAM! background noise sampling
-  * Sampling Rate Offset (SRO) utilities (see [paderwasn]())
-  * Markov Model-based dialogue sampling (refer to [hitachi_conversation]())
+  * Sampling Rate Offset (SRO) utilities (see [paderwasn](https://github.com/fgnt/paderwasn))
+  * Markov Model-based dialogue sampling (refer to [this paper](https://arxiv.org/abs/2204.11232))
 
 ## Extending MMS-MSG
 

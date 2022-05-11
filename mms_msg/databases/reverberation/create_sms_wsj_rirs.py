@@ -16,7 +16,9 @@ python -m mms_msg.database.reverberation.create_sms_wsj_rirs with database_path=
 # To recreate the RIRs with 16kHz sampling rate:
 python -m mms_msg.database.reverberation.create_sms_wsj_rirs with database_path=/Users/cord/data/sms_wsj_rirs rirs_16k
 
-Please note that creating all RIRs without MPI will take several days!
+Please note that creating all RIRs (train, dev, and test) without MPI will take several days! You might want to consider
+only generating the test RIRs in this case. Train and dev RIRs for 4 speaker positions are available for download at
+https://www.zenodo.org/record/3517889/#.YnufW79BxjE
 """
 
 import hashlib
