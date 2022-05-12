@@ -67,6 +67,7 @@ def reverberant_scenario_map_fn(
     """
     audio_data = example[keys.AUDIO_DATA]
     h = audio_data[keys.RIR]  # Shape (K, D, T)
+    h = np.asarray(h)
 
     # Estimate start sample first, to make it independent of channel_mode
     rir_start_sample = np.array([get_rir_start_sample(h_k) for h_k in h])
