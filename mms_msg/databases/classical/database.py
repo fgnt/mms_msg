@@ -1,11 +1,13 @@
 from lazy_dataset.database import JsonDatabase
 from mms_msg.databases.database import MMSMSGDatabase
+from mms_msg import keys
 from mms_msg.sampling.environment.rir import RIRSampler
 from mms_msg.sampling.source_composition import get_composition_dataset
 from mms_msg.simulation.anechoic import anechoic_scenario_map_fn
 from mms_msg.simulation.noise import white_microphone_noise
 from mms_msg.simulation.reverberant import reverberant_scenario_map_fn
 from mms_msg.simulation.truncation import truncate_min
+from mms_msg.simulation.utils import load_audio
 
 
 class AnechoicSpeakerMixtures(JsonDatabase, MMSMSGDatabase):
@@ -38,7 +40,8 @@ class AnechoicSpeakerMixtures(JsonDatabase, MMSMSGDatabase):
         ds = ds.map(self.overlap_sampler)
         return ds
 
-    def load_example(self, example):
+    def load_example(self, example: dict) -> dict:
+        example = load_audio(example, keys.ORIGINAL_SOURCE)
         example = anechoic_scenario_map_fn(example)
         if self.mode == 'min':
             example = truncate_min(example)
@@ -64,7 +67,8 @@ class ReverberantSpeakerMixtures(AnechoicSpeakerMixtures):
             RIRSampler(self.rir_database.get_dataset(name))
         )
 
-    def load_example(self, example):
+    def load_example(self, example: dict) -> dict:
+        example = load_audio(example, keys.ORIGINAL_SOURCE, keys.RIR)
         example = reverberant_scenario_map_fn(example)
         example = white_microphone_noise(example)
         if self.mode == 'min':

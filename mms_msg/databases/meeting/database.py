@@ -1,13 +1,12 @@
-import typing
-from pathlib import Path
-
 from lazy_dataset.database import JsonDatabase
+from mms_msg import keys
 from mms_msg.databases.database import MMSMSGDatabase
 from mms_msg.sampling.environment.rir import RIRSampler
 from mms_msg.sampling.source_composition import get_composition_dataset
 from mms_msg.simulation.anechoic import anechoic_scenario_map_fn
 from mms_msg.simulation.noise import white_microphone_noise
 from mms_msg.simulation.reverberant import reverberant_scenario_map_fn
+from mms_msg.simulation.utils import load_audio
 from paderbox.io.data_dir import database_jsons
 
 
@@ -46,6 +45,7 @@ class AnechoicMeetingDatabase(JsonDatabase, MMSMSGDatabase):
         return ds
 
     def load_example(self, example):
+        example = load_audio(example, keys.ORIGINAL_SOURCE)
         example = anechoic_scenario_map_fn(example)
         example = white_microphone_noise(example)
         return example
@@ -87,6 +87,7 @@ class ReverberantMeetingDatabase(AnechoicMeetingDatabase):
         return ds
 
     def load_example(self, example):
+        example = load_audio(example, keys.ORIGINAL_SOURCE, keys.RIR)
         example = reverberant_scenario_map_fn(example)
         example = white_microphone_noise(example)
         return example
