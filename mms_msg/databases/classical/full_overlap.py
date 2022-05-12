@@ -24,7 +24,7 @@ def WSJ2Mix(source_json_path=database_jsons / 'wsj_8k.json', mode='min'):
 
 def WSJ3Mix(source_json_path=database_jsons / 'wsj_8k.json', mode='min'):
     """
-    A database similar to the WSJ(0)-2mix database
+    A database similar to the WSJ(0)-3mix database
     """
     return AnechoicSpeakerMixtures(
         source_json_path=source_json_path,
@@ -37,6 +37,9 @@ def WSJ3Mix(source_json_path=database_jsons / 'wsj_8k.json', mode='min'):
 
 
 def Libri2MixClean(source_json_path=database_jsons / 'librispeech.json', mode='min'):
+    """
+    A database similar to the Libri2Mix clean database
+    """
     return AnechoicSpeakerMixtures(
         source_json_path=source_json_path,
         num_speakers=3,
@@ -51,10 +54,13 @@ def SMSWSJ(
         scenario_json_path=data_dir.db_dir / 'sms_wsj' / 'rirs' / 'scenarios.json',
         num_speakers=2,
 ):
+    """
+    A database similar to the SMS-WSJ database
+    """
     return ReverberantSpeakerMixtures(
         source_json_path=source_json_path,
         num_speakers=num_speakers,
-        overlap_sampler=SMSWSJOffsetSampler(),
+        offset_sampler=SMSWSJOffsetSampler(),
         scaling_sampler=UniformScalingSampler(5),
         snr_sampler=UniformSNRSampler(20, 30),
         rir_database=SMSWSJRIRDatabase(scenario_json_path),

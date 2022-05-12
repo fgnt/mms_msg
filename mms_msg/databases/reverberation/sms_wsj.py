@@ -38,7 +38,3 @@ class SMSWSJRIRDatabase(Database):
     def __init__(self, scenarios_json):
         super().__init__()
         self.scenarios_json = scenarios_json
-
-
-
-
