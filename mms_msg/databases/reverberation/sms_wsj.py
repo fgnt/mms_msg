@@ -2,6 +2,7 @@ from pathlib import Path
 
 from lazy_dataset.database import Database
 import paderbox as pb
+from paderbox.io import data_dir
 
 
 class SMSWSJRIRDatabase(Database):
@@ -25,7 +26,6 @@ class SMSWSJRIRDatabase(Database):
             ]
             return example
 
-
         data['datasets'] = {
             dataset_name: {
                 example_id: _add_audio_path(example, dataset_name)
@@ -35,6 +35,9 @@ class SMSWSJRIRDatabase(Database):
 
         return data
 
-    def __init__(self, scenarios_json):
+    def __init__(
+            self,
+            scenarios_json=data_dir.db_dir / 'sms_wsj' / 'rirs' / 'scenarios.json'
+    ):
         super().__init__()
         self.scenarios_json = scenarios_json

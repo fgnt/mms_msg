@@ -10,17 +10,17 @@ from mms_msg.simulation.utils import load_audio
 from paderbox.io.data_dir import database_jsons
 
 
-class AnechoicMeetingDatabase(JsonDatabase, MMSMSGDatabase):
+class AnechoicMeetingDatabase(MMSMSGDatabase):
     def __init__(
             self,
-            source_json_path,
+            source_database,
             num_speakers,
             meeting_sampler,
             scaling_sampler,
             snr_sampler,
             source_filter=None,
     ):
-        super().__init__(source_json_path)
+        super().__init__(source_database)
 
         self.num_speakers = num_speakers
         self.meeting_sampler = meeting_sampler
@@ -32,7 +32,7 @@ class AnechoicMeetingDatabase(JsonDatabase, MMSMSGDatabase):
         self.source_filter = source_filter
 
     def get_mixture_dataset(self, name, rng):
-        input_ds = super()._get_dataset(name).filter(self.source_filter)
+        input_ds = self.source_database.get_dataset(name).filter(self.source_filter)
 
         ds = get_composition_dataset(
             input_dataset=input_ds,
@@ -55,7 +55,7 @@ class ReverberantMeetingDatabase(AnechoicMeetingDatabase):
 
     def __init__(
             self,
-            source_json_path,
+            source_database,
             num_speakers,
             meeting_sampler,
             scaling_sampler,
@@ -64,7 +64,7 @@ class ReverberantMeetingDatabase(AnechoicMeetingDatabase):
             source_filter=None
     ):
         super().__init__(
-            source_json_path,
+            source_database,
             num_speakers,
             meeting_sampler,
             scaling_sampler,
@@ -74,7 +74,7 @@ class ReverberantMeetingDatabase(AnechoicMeetingDatabase):
         self.rir_database = rir_database
 
     def get_mixture_dataset(self, name, rng):
-        input_ds = super()._get_dataset(name).filter(self.source_filter)
+        input_ds = self.source_database.get_dataset(name).filter(self.source_filter)
 
         ds = get_composition_dataset(
             input_dataset=input_ds,

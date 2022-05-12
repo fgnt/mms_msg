@@ -1,3 +1,5 @@
+import lazy_dataset
+from lazy_dataset.database import JsonDatabase
 from mms_msg.databases.classical.database import AnechoicSpeakerMixtures, ReverberantSpeakerMixtures
 from mms_msg.databases.reverberation.sms_wsj import SMSWSJRIRDatabase
 from mms_msg.databases.single_speaker.wsj.utils import filter_punctuation_pronunciation
@@ -8,44 +10,44 @@ from paderbox.io import data_dir
 from paderbox.io.data_dir import database_jsons
 
 
-def WSJ2Mix(source_json_path=database_jsons / 'wsj_8k.json', mode='min'):
+def WSJ2Mix(source_json_path=database_jsons / 'wsj_8k.json', truncate_to_shortest=True):
     """
     A database similar to the WSJ(0)-2mix database
     """
     return AnechoicSpeakerMixtures(
-        source_json_path=source_json_path,
+        source_database=JsonDatabase(source_json_path),
         num_speakers=2,
         offset_sampler=ConstantOffsetSampler(0),
         scaling_sampler=UniformScalingSampler(5),
-        mode=mode,
+        truncate_to_shortest=truncate_to_shortest,
         source_filter=filter_punctuation_pronunciation,
     )
 
 
-def WSJ3Mix(source_json_path=database_jsons / 'wsj_8k.json', mode='min'):
+def WSJ3Mix(source_json_path=database_jsons / 'wsj_8k.json', truncate_to_shortest=True):
     """
     A database similar to the WSJ(0)-3mix database
     """
     return AnechoicSpeakerMixtures(
-        source_json_path=source_json_path,
+        source_database=JsonDatabase(source_json_path),
         num_speakers=3,
         offset_sampler=ConstantOffsetSampler(0),
         scaling_sampler=UniformScalingSampler(5),
-        mode=mode,
+        truncate_to_shortest=truncate_to_shortest,
         source_filter=filter_punctuation_pronunciation,
     )
 
 
-def Libri2MixClean(source_json_path=database_jsons / 'librispeech.json', mode='min'):
+def Libri2MixClean(source_json_path=database_jsons / 'librispeech.json', truncate_to_shortest=True):
     """
     A database similar to the Libri2Mix clean database
     """
     return AnechoicSpeakerMixtures(
-        source_json_path=source_json_path,
+        source_database=JsonDatabase(source_json_path),
         num_speakers=3,
         offset_sampler=ConstantOffsetSampler(0),
         scaling_sampler=UniformScalingSampler(5),
-        mode=mode,
+        truncate_to_shortest=truncate_to_shortest,
     )
 
 
@@ -58,7 +60,7 @@ def SMSWSJ(
     A database similar to the SMS-WSJ database
     """
     return ReverberantSpeakerMixtures(
-        source_json_path=source_json_path,
+        source_database=JsonDatabase(source_json_path),
         num_speakers=num_speakers,
         offset_sampler=SMSWSJOffsetSampler(),
         scaling_sampler=UniformScalingSampler(5),

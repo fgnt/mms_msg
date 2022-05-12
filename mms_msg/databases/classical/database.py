@@ -3,6 +3,7 @@ from typing import Callable
 
 import numpy as np
 
+import lazy_dataset.database
 from lazy_dataset import Dataset
 from lazy_dataset.database import JsonDatabase, Database
 from mms_msg.databases.database import MMSMSGDatabase
@@ -16,10 +17,10 @@ from mms_msg.simulation.truncation import truncate_min
 from mms_msg.simulation.utils import load_audio
 
 
-class AnechoicSpeakerMixtures(JsonDatabase, MMSMSGDatabase):
+class AnechoicSpeakerMixtures(MMSMSGDatabase):
     def __init__(
             self,
-            source_json_path: Path,
+            source_database: lazy_dataset.database.Database,
             num_speakers: int,
             offset_sampler: Callable[[dict], dict],
             scaling_sampler: Callable[[dict], dict],
@@ -46,7 +47,7 @@ class AnechoicSpeakerMixtures(JsonDatabase, MMSMSGDatabase):
                 utterances are not truncated
             source_filter: A function to filter the source examples
         """
-        super().__init__(source_json_path)
+        super().__init__(source_database)
         self.num_speakers = num_speakers
         self.overlap_sampler = offset_sampler
         self.scaling_sampler = scaling_sampler
@@ -58,7 +59,7 @@ class AnechoicSpeakerMixtures(JsonDatabase, MMSMSGDatabase):
 
     def get_mixture_dataset(self, name: str, rng: np.random.Generator) -> Dataset:
         ds = get_composition_dataset(
-            input_dataset=super().get_dataset(name).filter(self.source_filter),
+            input_dataset=self.source_database.get_dataset(name).filter(self.source_filter),
             num_speakers=self.num_speakers,
             rng=rng
         )
@@ -76,7 +77,7 @@ class AnechoicSpeakerMixtures(JsonDatabase, MMSMSGDatabase):
 
 class ReverberantSpeakerMixtures(AnechoicSpeakerMixtures):
     def __init__(self,
-                 source_json_path: Path,
+                 source_database: lazy_dataset.database.Database,
                  num_speakers: int,
                  offset_sampler: Callable[[dict], dict],
                  scaling_sampler: Callable[[dict], dict],
@@ -106,7 +107,7 @@ class ReverberantSpeakerMixtures(AnechoicSpeakerMixtures):
                 to the shorter utterance to ensure full overlap. If 'max',
                 utterances are not truncated
         """
-        super().__init__(source_json_path, num_speakers, offset_sampler, scaling_sampler, truncate_to_shortest, source_filter)
+        super().__init__(source_database, num_speakers, offset_sampler, scaling_sampler, truncate_to_shortest, source_filter)
         self.rir_database = rir_database
         self.snr_sampler = snr_sampler
 
