@@ -57,8 +57,8 @@ def AnechoicWSJ8kHzMeeting(source_json_path=database_jsons / 'wsj_8k.json', dura
             raise KeyError(f'No settings defined for overlap scenario {overlap_conditions}') from None
 
     overlap_sampler = UniformOverlapSampler(**overlap_conditions)
-    meeting_sampler = MeetingSampler(duration, overlap_sampler)
-    return AnechoicMeetingDatabase(source_json_path=source_json_path,
+    meeting_sampler = MeetingSampler(duration, overlap_sampler=overlap_sampler)
+    return AnechoicMeetingDatabase(source_database=JsonDatabase(source_json_path),
                                    num_speakers=num_speakers,
                                    meeting_sampler=meeting_sampler,
                                    scaling_sampler=UniformScalingSampler(5),
@@ -86,8 +86,8 @@ def ReverberantWSJ8kHzMeeting(source_json_path=database_jsons / 'wsj_8k.json', d
             raise KeyError(f'No settings defined for overlap scenario {overlap_conditions}') from None
 
     overlap_sampler = UniformOverlapSampler(**overlap_conditions)
-    meeting_sampler = MeetingSampler(duration, overlap_sampler)
-    return ReverberantMeetingDatabase(source_json_path=source_json_path,
+    meeting_sampler = MeetingSampler(duration, overlap_sampler=overlap_sampler)
+    return ReverberantMeetingDatabase(source_database=JsonDatabase(source_json_path),
                                       num_speakers=num_speakers,
                                       meeting_sampler=meeting_sampler,
                                       scaling_sampler=UniformScalingSampler(5),
