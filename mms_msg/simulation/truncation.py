@@ -40,11 +40,12 @@ def cut_segment(
             allow_early_stopping=True
         )
 
-    if not isinstance(start, int) or not isinstance(stop, int):
+    if not isinstance(start, (np.integer, int)) or not isinstance(stop, (np.integer, int)):
         raise TypeError(
-            f'start and stop must be integers, but got start={start!r} and '
-            f'stop={stop!r}'
+            f'start and stop must be integers, but got start={start!r} '
+            f'(type {type(start)}) and stop={stop!r} (type {type(stop)})'
         )
+    start, stop = int(start), int(stop)
 
     # Compute which "utterances" (i.e., entry in original_source) are active in
     # this segment
