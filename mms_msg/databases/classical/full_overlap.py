@@ -44,7 +44,7 @@ def Libri2MixClean(source_json_path=database_jsons / 'librispeech.json', truncat
     """
     return AnechoicSpeakerMixtures(
         source_database=JsonDatabase(source_json_path),
-        num_speakers=3,
+        num_speakers=2,
         offset_sampler=ConstantOffsetSampler(0),
         scaling_sampler=UniformScalingSampler(5),
         truncate_to_shortest=truncate_to_shortest,
