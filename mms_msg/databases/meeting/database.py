@@ -40,8 +40,8 @@ class AnechoicMeetingDatabase(MMSMSGDatabase):
             rng=rng
         )
         ds = ds.map(self.scaling_sampler)
-        ds = ds.map(self.snr_sampler)
         ds = ds.map(self.meeting_sampler(input_ds))
+        ds = ds.map(self.snr_sampler)
         return ds
 
     def load_example(self, example):
@@ -84,6 +84,7 @@ class ReverberantMeetingDatabase(AnechoicMeetingDatabase):
         ds = ds.map(self.scaling_sampler)
         ds = ds.map(RIRSampler(self.rir_database.get_dataset(name)))
         ds = ds.map(self.meeting_sampler(input_ds))
+        ds = ds.map(self.snr_sampler)
         return ds
 
     def load_example(self, example):
@@ -91,8 +92,3 @@ class ReverberantMeetingDatabase(AnechoicMeetingDatabase):
         example = reverberant_scenario_map_fn(example)
         example = white_microphone_noise(example)
         return example
-
-
-def WSJMeeting(source_json_path=database_jsons / 'wsj_8k.json'):
-    # TODO:
-    pass
