@@ -11,6 +11,7 @@ def reverberant_scenario_map_fn(
         normalize_sources: bool = True,
         add_speech_reverberation_early=True,
         add_speech_reverberation_tail=True,
+        compensate_time_of_flight=True,
         early_rir_samples: int = int(8000 * 0.05),  # 50 milli seconds
         details=False,
         channel_slice=None,
@@ -88,11 +89,15 @@ def reverberant_scenario_map_fn(
     # Compute the shifted offsets that align the convolved signals with the
     # speech source
     # This is Jahn's heuristic to be able to still use WSJ alignments.
-    rir_offset = [
-        offset_ - rir_start_sample_
-        for offset_, rir_start_sample_ in zip(
-            example[keys.OFFSET][keys.ORIGINAL_SOURCE], rir_start_sample)
-    ]
+    if compensate_time_of_flight:
+        rir_offset = [
+            offset_ - rir_start_sample_
+            for offset_, rir_start_sample_ in zip(
+                example[keys.OFFSET][keys.ORIGINAL_SOURCE], rir_start_sample)
+        ]
+    # Don't adapt offsets by subtracting the minimal time of flight (e.g. for multiple microphone arrays)
+    else:
+        rir_offset = example[keys.OFFSET][keys.ORIGINAL_SOURCE]
 
     # The two sources have to be cut to same length
     K = len(example[keys.SPEAKER_ID])
