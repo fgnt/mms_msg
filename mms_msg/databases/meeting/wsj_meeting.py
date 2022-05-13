@@ -1,18 +1,14 @@
-from pathlib import Path
-
 from lazy_dataset.database import JsonDatabase
-from mms_msg.databases.utils import get_dataset_name_and_rng
 from paderbox.io.data_dir import database_jsons
-from mms_msg.sampling.source_composition import get_composition_dataset
-from mms_msg.sampling.environment.rir import RIRSampler
 from mms_msg.sampling.environment.scaling import UniformScalingSampler
-from mms_msg.databases.single_speaker.wsj.utils import filter_punctuation_pronunciation
 from mms_msg.sampling.pattern.meeting import MeetingSampler
 from mms_msg.sampling.pattern.meeting.overlap_sampler import UniformOverlapSampler
 from mms_msg.sampling.environment.noise import UniformSNRSampler
 from .database import AnechoicMeetingDatabase, ReverberantMeetingDatabase
 from paderbox.io import data_dir
 from ..reverberation.sms_wsj import SMSWSJRIRDatabase
+from ..single_speaker.wsj.database import WSJ8kHz
+from ..single_speaker.wsj.utils import filter_punctuation_pronunciation
 
 OVERLAP_SETTINGS = {
     'no_ov': {
@@ -37,8 +33,7 @@ OVERLAP_SETTINGS = {
 }
 
 
-def AnechoicWSJ8kHzMeeting(source_json_path=database_jsons / 'wsj_8k.json', duration=120 * 8000,
-                           overlap_conditions='medium_ov', num_speakers=(5, 6, 7, 8)):
+def AnechoicWSJ8kHzMeeting(duration=120 * 8000, overlap_conditions='medium_ov', num_speakers=(5, 6, 7, 8)):
     """
     Meetings based on the WSJ0-2mix dataset. The resulting mixtures will have a matching value range,
     so that models trained on this data can be evaluated on WSJ0-2mix and vice versa.
@@ -57,15 +52,17 @@ def AnechoicWSJ8kHzMeeting(source_json_path=database_jsons / 'wsj_8k.json', dura
             raise KeyError(f'No settings defined for overlap scenario {overlap_conditions}') from None
 
     overlap_sampler = UniformOverlapSampler(**overlap_conditions)
-    meeting_sampler = MeetingSampler(duration, overlap_sampler=overlap_sampler)
-    return AnechoicMeetingDatabase(source_database=JsonDatabase(source_json_path),
+    meeting_sampler = MeetingSampler(duration, overlap_sampler)
+    return AnechoicMeetingDatabase(source_database=WSJ8kHz(),
                                    num_speakers=num_speakers,
                                    meeting_sampler=meeting_sampler,
                                    scaling_sampler=UniformScalingSampler(5),
-                                   snr_sampler=UniformSNRSampler(20, 30))
+                                   snr_sampler=UniformSNRSampler(20, 30),
+                                   source_filter=filter_punctuation_pronunciation,
+                                   )
 
 
-def ReverberantWSJ8kHzMeeting(source_json_path=database_jsons / 'wsj_8k.json', duration=120 * 8000,
+def ReverberantWSJ8kHzMeeting(duration=120 * 8000,
                               overlap_conditions='medium_ov', num_speakers=(5, 6, 7, 8),
                               scenario_json_path=data_dir.db_dir / 'sms_wsj' / 'rirs' / 'scenarios.json'):
     """
@@ -73,11 +70,15 @@ def ReverberantWSJ8kHzMeeting(source_json_path=database_jsons / 'wsj_8k.json', d
     so that models trained on this data can be evaluated on WSJ0-2mix and vice versa.
 
     Args:
-        num_speaker:
-        overlap_conditions:
+        duration: Minimal duration of each meeting (in samples). The sampling of new utterances is stopped once the meeting
+                  length exceeds this value
+        overlap_conditions: Specifies the overlap scenario, either via pre-defined scnearios or custom values
+            either str or dict of overlap settings
+        num_speakers: Number of speakers per meeting. Any permitted number of speakers needs to be listed.
+        scenario_json_path: Path to the 'scenarios.json' that is created after simulating the SMSWSJ RIRs
 
     Returns:
-
+        Database object containing configurations for reverberated WSJ meetings
     """
     if isinstance(overlap_conditions, str):
         try:
@@ -86,10 +87,12 @@ def ReverberantWSJ8kHzMeeting(source_json_path=database_jsons / 'wsj_8k.json', d
             raise KeyError(f'No settings defined for overlap scenario {overlap_conditions}') from None
 
     overlap_sampler = UniformOverlapSampler(**overlap_conditions)
-    meeting_sampler = MeetingSampler(duration, overlap_sampler=overlap_sampler)
-    return ReverberantMeetingDatabase(source_database=JsonDatabase(source_json_path),
+    meeting_sampler = MeetingSampler(duration, overlap_sampler)
+    return ReverberantMeetingDatabase(source_database=WSJ8kHz(),
                                       num_speakers=num_speakers,
                                       meeting_sampler=meeting_sampler,
                                       scaling_sampler=UniformScalingSampler(5),
                                       snr_sampler=UniformSNRSampler(20, 30),
-                                      rir_database=SMSWSJRIRDatabase(scenario_json_path))
+                                      rir_database=SMSWSJRIRDatabase(scenario_json_path),
+                                      source_filter=filter_punctuation_pronunciation,
+                                      )
