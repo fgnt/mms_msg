@@ -113,6 +113,7 @@ class _MeetingSampler:
             'source_dataset',
             'sound_decay_time',
             'sensor_position',
+            'snr',
         )
 
         # Collate
