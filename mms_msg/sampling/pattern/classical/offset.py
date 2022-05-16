@@ -7,7 +7,7 @@ from mms_msg.sampling.utils.utils import update_num_samples
 
 def assign_offset(example, offset):
     assert keys.OFFSET not in example
-    example[keys.OFFSET] = {keys.ORIGINAL_SOURCE: offset}
+    example[keys.OFFSET] = {keys.ORIGINAL_SOURCE: [int(o) for o in offset]}
     update_num_samples(example)
     return example
 
