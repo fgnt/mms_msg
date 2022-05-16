@@ -4,7 +4,7 @@ import datetime
 from sacred import Experiment
 from tqdm import tqdm
 
-from mms_msg.databases import WSJ8_kHz_FullOverlap
+from mms_msg.databases.classical.full_overlap import WSJ2Mix
 import paderbox as pb
 import padertorch as pt
 
@@ -15,7 +15,7 @@ ex = Experiment('mixture_generator_create_json')
 def defaults():
     json_path = 'database.json'
     database = {
-        'factory': WSJ8_kHz_FullOverlap,
+        'factory': WSJ2Mix,
     }
     pt.Configurable.get_config(database)
 
