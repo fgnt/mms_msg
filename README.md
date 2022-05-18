@@ -13,8 +13,8 @@ Baseline model will be provided on a later date.
 ---
 MMS-MSG is a highly modular and flexible framework for the generation of speech mixtures.
 It extends the code-base of the [SMS-WSJ](https://github.com/fgnt/sms_wsj) database 
-for mixture signal generation to be able to generate both meeting-sytle speech mixtures and 
-mixture signals corresponding to classical spech mixture databases.
+for mixture signal generation to be able to generate both meeting-style speech mixtures and 
+mixture signals corresponding to classical speech mixture databases.
 
 
 
@@ -32,10 +32,10 @@ procesing and transcription system in as many environments as possible.
 The core aspect of MMS-MSG is the generation of meeting-style data. The meetings are generated in a modular fashion.
 Adjustable parameters are:
  * **Source database** (e.g. WSJ, LibriSpeech): Any audio database consisting of clean, single-speaker utterances 
-  that provides access to speaker identitites can be used to simulate meeting data. Any additional information like
+  that provides access to speaker identities can be used to simulate meeting data. Any additional information like
   transcriptions are kept and can still be used.
- * **Number of participants**:  The number of speakers per meeting can be freely chosen. Furthermore, it is possible to
- to set a range, so that meetigns with varying numbers of active speakers are generated.
+ * **Number of participants**:  The number of speakers per meeting can be freely chosen. Furthermore, it is possible
+ to set a range, so that meetings with varying numbers of active speakers are generated.
  * **Activity distribution per speaker**: Aside from fully random sampling algorithms to sample the next active speaker of
    a meeting, we also provide an activity-based speaker sampling. Here, the activity distribution per speaker (i.e. the speech ratio of each speaker)
  can be freely specified. Over the course of the meeting, the activity distribution will converge to the desired ratio,
@@ -117,7 +117,8 @@ example = {
 }
 ```
 
-Starting from such a structure, sampling modules can be applied to fill the example with more information, e.g., offsets or scaling of the utterances.
+Starting from such a structure, sampling modules can be applied to fill the example with more information, e.g.,
+offsets or scaling of the utterances.
 
 ### Creating a custom database from existing sampling modules
 
