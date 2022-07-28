@@ -7,7 +7,6 @@ from mms_msg.sampling.environment.noise import UniformSNRSampler
 from .database import AnechoicMeetingDatabase, ReverberantMeetingDatabase
 from paderbox.io import data_dir
 from ..reverberation.sms_wsj import SMSWSJRIRDatabase
-from ..single_speaker.wsj.database import WSJ8kHz
 from ..single_speaker.wsj.utils import filter_punctuation_pronunciation
 
 OVERLAP_SETTINGS = {
