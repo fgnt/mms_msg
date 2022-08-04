@@ -113,11 +113,11 @@ def create_json(database_path, wav):
 
 @click.command()
 @click.option(
-    '-json_path', '--j', default='librispeech.json',
+    '--json_path', '-j', default='librispeech.json',
     help=''
 )
 @click.option(
-    '-data_dir', '--d',
+    '--data_dir', '-d',
     help='Path to the folder containing the LibriSpeech data',
 )
 @click.option(
