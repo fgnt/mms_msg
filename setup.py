@@ -1,9 +1,10 @@
 from setuptools import setup
+from setuptools import find_packages
 
 setup(
     name='mms_msg',
     version='0.0.0',
-    packages=['mms_msg'],
+    packages=find_packages(exclude=('tests', 'notebooks')),
     url='',
     license='',
     author='Thilo von Neumann',
