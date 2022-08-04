@@ -134,7 +134,7 @@ def main(json_path, database_path, wav):
     print('Check that all wav files in the json exists.')
     check_audio_files_exist(database, speedup='thread')
     print('Finished check. Write json to disk:')
-    dump_json(Path(json_path), database,
+    dump_json(database, Path(json_path),
               create_path=True,
               indent=4,
               ensure_ascii=False
