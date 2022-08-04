@@ -74,7 +74,8 @@ def check_audio_files_exist(
     to_check = pb.utils.nested.flatten(
         database_dict,
     )
-    to_check = {key: entry for key, entry in to_check.items() if condition_fn(entry)}
+    # Use path as key to drop duplicates
+    to_check = {entry: key for key, entry in to_check.items() if condition_fn(entry)}
 
     assert len(to_check) > 0, (
         f'Expect at least one wav file. '
