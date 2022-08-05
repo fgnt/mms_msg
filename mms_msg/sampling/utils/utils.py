@@ -40,8 +40,8 @@ def normalize_example(example):
     Traceback (most recent call last):
       ...
     AssertionError: Invalid input example: {'num_samples': 42, 'audio_path': 'asdf'}
-    >>> normalize_example({'num_samples': 42, 'audio_path': 'asdf', 'example_id': 0, 'speaker_id': 42})
-    {'num_samples': {'observation': 42}, 'audio_path': {'observation': 'asdf'}, 'example_id': 0, 'speaker_id': 42, 'scenario': 42}
+    >>> normalize_example({'num_samples': 42, 'dataset': 'foo','audio_path': 'asdf', 'example_id': 0, 'speaker_id': 42})
+    {'num_samples': {'observation': 42}, 'dataset': 'foo', 'audio_path': {'observation': 'asdf'}, 'example_id': 0, 'speaker_id': 42, 'scenario': 42}
     """
     # Perform some checks
     try:

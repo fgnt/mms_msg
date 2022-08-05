@@ -5,21 +5,21 @@ def sample_random_round_robin(a, sequence, rng: np.random.Generator):
     """
     >>> a = list('abc')
     >>> sequence = []
-    >>> rng = np.random.default_rng(0)
+    >>> rng = np.random.default_rng(42)
     >>> for i in range(10):
     ...     s = sample_random_round_robin(a, sequence, rng)
     ...     sequence.append(s)
     ...     print(s)
-    b
-    a
-    c
     a
     c
     b
-    c
+    b
     a
+    c
     b
     c
+    a
+    a
     """
     # TODO: what if a contains duplicate elements?
     present_elements = set(sequence[len(sequence)-(len(sequence) % len(a)):])

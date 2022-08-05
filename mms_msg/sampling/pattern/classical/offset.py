@@ -45,15 +45,15 @@ def sample_partial_overlap(example, *, minimum_overlap, maximum_overlap):
     >>> del ex['dataset'], ex['example_id']
     >>> pprint(ex)
     {'num_samples': {'original_source': [10000, 15000],
-      'observation': 20390.74687131983},
-     'offset': {'original_source': [0, 5390.746871319828]}}
+      'observation': 20390},
+     'offset': {'original_source': [0, 5390]}}
     """
     rng = get_rng_example(example, 'offset')
     overlap = rng.uniform(minimum_overlap, maximum_overlap)
     num_samples = example[keys.NUM_SAMPLES][keys.ORIGINAL_SOURCE]
     assert len(num_samples) == 2, (len(num_samples), num_samples)
     overlap_samples = sum(num_samples)*overlap / (1 + overlap)
-    offset = [0, max(num_samples[0] - overlap_samples, 0)]
+    offset = [0, int(max(num_samples[0] - overlap_samples, 0))]
     assign_offset(example, offset)
     return example
 
@@ -61,7 +61,8 @@ def sample_partial_overlap(example, *, minimum_overlap, maximum_overlap):
 @dataclass(frozen=True)
 class ConstantOffsetSampler:
     """Samples constant offsets, e.g., for WSJ0-2mix-like data
-    >>> ConstantOffsetSampler(0)({'speaker_id': 'abc'})
+    >>> ConstantOffsetSampler(0)({'speaker_id': ['abc',], 'num_samples': {'original_source': [123,]} })
+    {'speaker_id': ['abc'], 'num_samples': {'original_source': [123], 'observation': 123}, 'offset': {'original_source': [0]}}
     """
     offsets: [int, list, tuple] = 0
 

@@ -59,21 +59,21 @@ def sample_random_round_robin(scenarios: list, examples: list, rng: np.random.Ge
 
     >>> scenarios = list('abc')
     >>> examples = []
-    >>> rng = np.random.default_rng(0)
+    >>> rng = np.random.default_rng(42)
     >>> for i in range(10):
     ...     scenario = sample_random_round_robin(scenarios, examples, rng)
     ...     examples.append({'scenario': scenario})
     ...     print(scenario)
-    b
-    a
-    c
     a
     c
     b
-    c
+    b
     a
+    c
     b
     c
+    a
+    a
     """
     return sequence_sampling.sample_random_round_robin(
         scenarios, [x['scenario'] for x in examples], rng
