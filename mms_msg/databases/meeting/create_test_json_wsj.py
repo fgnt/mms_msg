@@ -1,4 +1,4 @@
-
+import operator
 from functools import partial
 
 import lazy_dataset
@@ -27,7 +27,7 @@ def defaults():
     json_path = 'test_meetings_wsj8k.json'
     meeting_duration = 120 * 8000
     num_speakers = (5, 6, 7, 8)
-    overlap_conditions = dict(no_ov=OVERLAP_SETTINGS['no_ov'], medium_overlap=OVERLAP_SETTINGS['medium_overlap'],
+    overlap_conditions = dict(no_ov=OVERLAP_SETTINGS['no_ov'], medium_overlap=OVERLAP_SETTINGS['medium_ov'],
                               high_overlap=OVERLAP_SETTINGS['high_ov'])
     dataset_name = "test_eval92"
     reverb = True
@@ -86,7 +86,7 @@ def _speaker_composition_list_to_dict(
     return base
 
 
-def sample_rirs_for_test_set(example,rir_dataset, rng):
+def sample_rirs_for_test_set(example, rir_dataset, rng):
 
     rir_example = rir_dataset.random_choice(rng_state=rng)
     rirs = rir_example['audio_path']['rir']
