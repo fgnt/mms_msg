@@ -1,3 +1,5 @@
+from typing import Iterable
+
 from lazy_dataset.database import JsonDatabase
 from mms_msg import keys
 from mms_msg.simulation.utils import load_audio
@@ -16,13 +18,15 @@ class LibriSpeech(JsonDatabase):
 
     def add_scenario(self, example):
         example['scenario'] = '_'.join([example[key] for key in sorted(self.scenario_key)])
+        return example
 
     def get_dataset(self, name=None):
         dataset = super().get_dataset(name)
         if self.scenario_key is not None:
-            dataset.map(self.add_scenario)
+            dataset = dataset.map(self.add_scenario)
         return dataset
 
+
 class LibriSpeech8kHz(LibriSpeech):
-    def __init__(self, json_path=database_jsons / 'librispeech_8k.json'):
-        super().__init__(json_path)
+    def __init__(self, json_path=database_jsons / 'librispeech_8k.json', scenario_key=None):
+        super().__init__(json_path, scenario_key=scenario_key)
