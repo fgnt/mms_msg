@@ -94,7 +94,6 @@ class _MeetingSampler:
             else:
                 offset = 0
             current_source[keys.OFFSET] = {keys.ORIGINAL_SOURCE: offset}
-            current_source['speaker_end'] = offset + current_source['num_samples']['observation']
 
             examples.append(current_source)
 
