@@ -15,3 +15,7 @@ def get_rng_state(*seed: [str, int]) -> np.random.RandomState:
 
 def get_rng_example(example, *seed) -> np.random.Generator:
     return get_rng(example['dataset'], example['example_id'], *seed)
+
+
+def derive_rng(rng: np.random.Generator, *additional_seed) -> np.random.Generator:
+    return get_rng(rng.integers(0, 2**32), *additional_seed)

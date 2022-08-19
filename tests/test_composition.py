@@ -18,6 +18,20 @@ def get_input_dataset():
         } for i, speaker_id in enumerate('abcdefg' * 3)
     ])
 
+parameterize_sampler_fn = pytest.mark.parametrize(
+    'sampler_fn', (
+        mms_msg.sampling.source_composition.sample_utterance_composition,
+        functools.partial(
+            mms_msg.sampling.source_composition.sample_reduced_utterance_composition,
+            reduced_set='speaker_id'
+        ),
+        functools.partial(
+            mms_msg.sampling.source_composition.sample_low_resource_utterance_composition,
+            length=5
+        )
+    )
+)
+
 
 def test_full_speaker_composition_sampler():
     input_dataset = get_input_dataset()
@@ -52,20 +66,34 @@ def test_reduced_speaker_composition_sampler():
         assert {k: v * repetitions for k, v in Counter(set(speaker_ids)).items()} == Counter([v['speaker_id'][i] for v in composition.values()])
 
 
-@pytest.mark.parametrize(
-    'sampler_fn', (
-        mms_msg.sampling.source_composition.sample_utterance_composition,
-        functools.partial(
-            mms_msg.sampling.source_composition.sample_reduced_utterance_composition,
-            reduced_set='speaker_id'
+def test_low_resource_composition_sampler():
+    input_dataset = get_input_dataset()
+    composition1 = mms_msg.sampling.source_composition.get_composition(
+        input_dataset, num_speakers=3, composition_sampler=functools.partial(
+            mms_msg.sampling.source_composition.sample_low_resource_utterance_composition,
+            length=10
         )
     )
-)
+    composition2 = mms_msg.sampling.source_composition.get_composition(
+        input_dataset, num_speakers=3, composition_sampler=functools.partial(
+            mms_msg.sampling.source_composition.sample_low_resource_utterance_composition,
+            length=20
+        )
+    )
+
+    # Check length
+    assert len(composition1) == 10
+    assert len(composition2) == 20
+
+    # Check that growing a composition doesn't change its contents
+    assert list(composition1.values()) == list(composition2.values())[:10]
+
+@parameterize_sampler_fn
 def test_varying_num_speakers(sampler_fn):
     input_dataset = get_input_dataset()
 
     # Check that the first examples are equal when compositions with the same
-    # input dataset but different numers of speakers are generated
+    # input dataset but different numbers of speakers are generated
     ref_spk = []
     for num_speakers in range(2, 6):
         composition = mms_msg.sampling.source_composition.get_composition(input_dataset, num_speakers, sampler_fn)
@@ -74,25 +102,26 @@ def test_varying_num_speakers(sampler_fn):
         ref_spk = example['speaker_id']
 
 
-def test_deterministic():
+@parameterize_sampler_fn
+def test_deterministic(sampler_fn):
     input_dataset = get_input_dataset()
 
     # Initialize two times with the same seed should give the same examples
-    composition1 = mms_msg.sampling.source_composition.get_composition(input_dataset, 2)
-    composition2 = mms_msg.sampling.source_composition.get_composition(input_dataset, 2)
-    composition3 = mms_msg.sampling.source_composition.get_composition(input_dataset, 2, rng=1234)
-    composition4 = mms_msg.sampling.source_composition.get_composition(input_dataset, 2, rng=1234)
+    composition1 = mms_msg.sampling.source_composition.get_composition(input_dataset, 2, composition_sampler=sampler_fn)
+    composition2 = mms_msg.sampling.source_composition.get_composition(input_dataset, 2, composition_sampler=sampler_fn)
+    composition3 = mms_msg.sampling.source_composition.get_composition(input_dataset, 2, rng=1234, composition_sampler=sampler_fn)
+    composition4 = mms_msg.sampling.source_composition.get_composition(input_dataset, 2, rng=1234, composition_sampler=sampler_fn)
 
     assert composition1 == composition2
     assert composition3 == composition4
     assert composition2 != composition3
 
-
-def test_dynamic_mixing():
+@parameterize_sampler_fn
+def test_dynamic_mixing(sampler_fn):
     input_dataset = get_input_dataset()
 
     # Initialize two times with the same seed should give the same examples
-    ds1 = mms_msg.sampling.source_composition.get_composition_dataset(input_dataset, 2, rng=True)
+    ds1 = mms_msg.sampling.source_composition.get_composition_dataset(input_dataset, 2, rng=True, composition_sampler=sampler_fn)
 
     # Every time ds is iterated it generates a new sequence
     assert list(ds1) != list(ds1)
