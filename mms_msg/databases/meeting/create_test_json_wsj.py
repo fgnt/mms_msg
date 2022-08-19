@@ -138,8 +138,7 @@ def main(json_path, overlap_conditions, meeting_duration, source_json_path, rir_
             if reverb:
                 rir_dataset = SMSWSJRIRDatabase(
                     scenarios_json=rir_json_path).get_dataset('test_eval92')
-
-            meeting_dataset = meeting_dataset.map(partial(sample_rirs_for_test_set, rir_dataset=rir_dataset, rng=rng))
+                meeting_dataset = meeting_dataset.map(partial(sample_rirs_for_test_set, rir_dataset=rir_dataset, rng=rng))
             meeting_dataset = meeting_dataset.map(meeting_sampler(test_dataset))
 
 
