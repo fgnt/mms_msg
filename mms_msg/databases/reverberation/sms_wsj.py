@@ -33,11 +33,19 @@ class SMSWSJRIRDatabase(Database):
             } for dataset_name, dataset in data['datasets'].items()
         }
 
+        if self.dataset_mapping:
+            data['datasets'] = {
+                dataset_name: data['datasets'][source_dataset_name]
+                for dataset_name, source_dataset_name in self.dataset_mapping.items()
+            }
+
         return data
 
     def __init__(
             self,
-            scenarios_json=data_dir.db_dir / 'sms_wsj' / 'rirs' / 'scenarios.json'
+            scenarios_json=data_dir.db_dir / 'sms_wsj' / 'rirs' / 'scenarios.json',
+            dataset_mapping=None,
     ):
         super().__init__()
         self.scenarios_json = scenarios_json
+        self.dataset_mapping = dataset_mapping
