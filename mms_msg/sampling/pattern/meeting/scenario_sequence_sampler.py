@@ -1,5 +1,6 @@
 import numpy as np
 from mms_msg.sampling.utils import sequence_sampling
+from paderbox.utils.mapping import Dispatcher
 
 
 def sample_random(scenarios: list, examples: list, rng: np.random.Generator):
@@ -145,3 +146,12 @@ def sample_asymmetric(scenarios, examples, rng: np.random.Generator, target_acti
     assert np.isclose(np.sum(p_scenario), 1)
 
     return rng.choice(scenarios, p=p_scenario)
+
+
+scenario_sequence_samplers = Dispatcher({
+    'random': sample_random,
+    'round_robin': sample_round_robin,
+    'random_round_robin': sample_random_round_robin,
+    'balanced': sample_balanced,
+    'balanced_no_repeat': sample_balanced_no_repeat,
+})

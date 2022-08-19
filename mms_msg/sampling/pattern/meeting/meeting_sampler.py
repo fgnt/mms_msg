@@ -12,7 +12,7 @@ import padertorch as pt
 import paderbox as pb
 from lazy_dataset import Dataset
 from .overlap_sampler import OverlapSampler, UniformOverlapSampler
-from .scenario_sequence_sampler import sample_balanced
+from .scenario_sequence_sampler import sample_balanced, scenario_sequence_samplers
 from mms_msg.sampling.utils import update_num_samples, cache_and_normalize_input_dataset, collate_fn, sequence_sampling
 from mms_msg.sampling.utils.rng import get_rng_example
 
@@ -25,6 +25,12 @@ class _MeetingSampler:
     duration: int
     overlap_sampler: OverlapSampler
     scenario_sequence_sampler: callable = sample_balanced
+
+    def __post_init__(self):
+        if isinstance(self.scenario_sequence_sampler, str):
+            self.scenario_sequence_sampler = scenario_sequence_samplers[
+                self.scenario_sequence_sampler
+            ]
 
     @cached_property
     def normalized_dataset(self) -> Dataset:
