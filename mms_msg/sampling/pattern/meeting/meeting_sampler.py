@@ -191,6 +191,16 @@ class MeetingSampler(pt.Configurable):
 
     Sampling is deterministic based on the example_id and the contents of the
     input `dataset`.
+
+    Args:
+        duration: The minimum duration of the generated meetings
+        scenario_sequence_sampler: A sampler for sequence of scenarios/speakers.
+            This defines the distribution of the speakers over the course of
+            a meeting. The default is a balanced sampler which lets all
+            speakers in a meeting have roughly the same activity.
+            See `mms_msg.sampling.pattern.meeting.scenario_sequence_sampler`.
+        overlap_sampler: A sampler that samples the overlap and silence
+            durations between adjacent utterances in a meeting.
     """
     duration: int = 120 * 8000
     scenario_sequence_sampler: callable = sample_balanced

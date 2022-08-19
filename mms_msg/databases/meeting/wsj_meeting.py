@@ -49,7 +49,9 @@ def AnechoicWSJ8kHzMeeting(source_json_path=database_jsons / 'wsj_8k.json',
         overlap_conditions: Specifies the overlap scenario, either via pre-defined scnearios or custom values
             either str or dict of overlap settings
         num_speakers: Number of speakers per meeting. Any permitted number of speakers needs to be listed.
-        scenario_json_path: Path to the 'scenarios.json' that is created after simulating the SMSWSJ RIRs
+        scenario_sequence_sampler: The sampler that defines the sequence of speakers.
+            See `mms_msg.sampling.pattern.meeting.scenario_sequence_sampler`
+            for available samplers.
 
     Returns:
         Database object containing configurations for anechoic WSJ meetings
@@ -90,6 +92,9 @@ def ReverberantWSJ8kHzMeeting(source_json_path=database_jsons / 'wsj_8k.json',
         overlap_conditions: Specifies the overlap scenario, either via pre-defined scnearios or custom values
             either str or dict of overlap settings
         num_speakers: Number of speakers per meeting. Any permitted number of speakers needs to be listed.
+        scenario_sequence_sampler: The sampler that defines the sequence of speakers.
+            See `mms_msg.sampling.pattern.meeting.scenario_sequence_sampler`
+            for available samplers.
         scenario_json_path: Path to the 'scenarios.json' that is created after simulating the SMSWSJ RIRs
 
     Returns:
