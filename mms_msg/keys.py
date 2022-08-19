@@ -1,10 +1,3 @@
-"""
-The keys file is part of the new database concept 2017.
-
-These are database related keys. Use them in your database JSON.
-
-Please avoid abbreviations and discuss first, before adding new keys.
-"""
 DATASETS = "datasets"
 DATASET_NAME = "dataset"
 EXAMPLES = "examples"
@@ -24,8 +17,8 @@ CHAPTER_ID = 'chapter_id'
 GENDER = 'gender'
 START = 'start'  # start time in a mixture signal for each speaker_id
 END = 'end'  # end time in a mixture signal for each speaker_id
-OFFSET = 'offset'   # Offset as used in SMS-WSJ database
-SNR = 'snr'     # Noise SNR
+OFFSET = 'offset'  # Offset as used in SMS-WSJ database
+SNR = 'snr'  # Noise SNR
 
 # Segmentation refers to a list of tuples
 # [(<label 1>, <start sample>, <end sample>), ...]
@@ -112,9 +105,14 @@ TRIALS = 'trials'
 
 # Speaker-wise keys for examples after the scenario_map_fn (and before any
 # transform_fn)
+SCENARIO = 'scenario'
+SOURCE_ID = 'source_id'
+SOURCE_DATASET = 'source_dataset'
+
 
 def _join(*keys: str) -> str:
     return '.'.join(keys)
+
 
 speaker_wise_keys = [
     _join(OFFSET, ORIGINAL_SOURCE),
@@ -130,4 +128,7 @@ speaker_wise_keys = [
     LOG_WEIGHTS,
     SPEAKER_ID,
     TRANSCRIPTION,
+    SCENARIO,
+    SOURCE_ID,
+    SOURCE_DATASET
 ]

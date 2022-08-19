@@ -47,6 +47,10 @@ def sample_partial_overlap(example, *, minimum_overlap, maximum_overlap):
     {'num_samples': {'original_source': [10000, 15000],
       'observation': 20390},
      'offset': {'original_source': [0, 5390]}}
+
+     Args:
+         minimum_overlap: Minimum amount of overlap as a ratio (between 0 and 1)
+         maximum_overlap: Maximum amount of overlap as a ratio (between 0 and 1)
     """
     rng = get_rng_example(example, 'offset')
     overlap = rng.uniform(minimum_overlap, maximum_overlap)

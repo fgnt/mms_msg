@@ -17,20 +17,34 @@ def _get_valid_overlap_region(examples, max_concurrent_spk, current_source):
     Returns:
 
     """
-    speaker_end = examples['speaker_end']
+    speaker_end = np.asarray(examples['offset']['original_source']) + np.asarray(examples['num_samples']['observation'])
     speaker_id = examples['speaker_id']
 
-    speaker_id = speaker_id + [None] * (max_concurrent_spk - len(speaker_end))
-    speaker_end = speaker_end + [0] * (max_concurrent_spk - len(speaker_end))
+    return get_allowed_max_overlap(speaker_end, speaker_id, max_concurrent_spk, current_source['speaker_id'])
+
+
+def get_allowed_max_overlap(speaker_end, speaker_ids, max_concurrent_spk, current_speaker_id):
+    """
+    >>> get_allowed_max_overlap([1], ['a'], max_concurrent_spk=2, current_speaker_id='a')
+    """
+    speaker_end = np.asarray(speaker_end)
+    assert speaker_end.ndim == 1, speaker_end.shape
+
+    # Pad speaker_ids and speaker_end to have at least max_concurrent_spk entries
+    speaker_ids = speaker_ids + [None] * (max_concurrent_spk - len(speaker_end))
+    speaker_end = np.concatenate([
+        speaker_end,
+        np.zeros_like(speaker_end, shape=max(max_concurrent_spk - speaker_end.shape[-1], 0))
+    ])
 
     # Only keep end points relevant for the current sampling
     speaker_idx = np.argsort(speaker_end)[-max_concurrent_spk:]
-
     speaker_end = np.array(speaker_end)[speaker_idx]
-    speaker_id = np.array(speaker_id)[speaker_idx]
+    speaker_ids = np.array(speaker_ids)[speaker_idx]
 
-    if current_source['speaker_id'] in speaker_id:
-        spk_pos = list(speaker_id)[::-1].index(current_source['speaker_id'])
+    if current_speaker_id in speaker_ids:
+        # Find last appearance of the speaker
+        spk_pos = list(speaker_ids)[::-1].index(current_speaker_id)
         max_concurrent_spk = spk_pos + 1  # remove index shift introduced by flipping the list
     max_overlap = speaker_end[-1] - speaker_end[-max_concurrent_spk]
     return max_overlap
@@ -114,7 +128,10 @@ class UniformOverlapSampler(OverlapSampler):
 
         # The final offset is global, but the shift is relative to the last
         # speaker end time, so shift
-        offset = sorted(examples['speaker_end'])[-1] + shift
+        offset = np.max(
+            np.asarray(examples['offset']['original_source']) +
+            np.asarray(examples['num_samples']['observation'])
+        ) + shift
         return offset
 
     def _sample_shift(self, rng):
