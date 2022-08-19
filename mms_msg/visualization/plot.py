@@ -11,7 +11,7 @@ def plot_mixture(ex, sample_rate=None, ax=None):
     speech_activity = defaultdict(pb.array.interval.zeros)
     num_samples = pb.utils.nested.get_by_path(ex, 'num_samples.original_source', allow_early_stopping=True)
     for o, l, s, in zip(ex['offset']['original_source'], num_samples, ex['speaker_id']):
-        speech_activity[s][o:o + l] = True
+        speech_activity[s][max(o, 0):o + l] = True
 
     pb.visualization.plot.activity(speech_activity, ax=ax)
     ax.axvline(ex['num_samples']['observation'])
