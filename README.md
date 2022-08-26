@@ -97,6 +97,11 @@ example = {
         'observation': 'single_speaker_recording.wav'
     },
     'speaker_id': 'A',
+    'num_samples': 1234,  # Number of samples of the observation file
+    # 'num_samples': {'observation': 1234} # Alernative, if other audios are present
+    'dataset': 'test',  # The input dataset name
+    'example_id': 'asdf1234', # Unique ID of this example. Optional if the input data is passes as a dict
+    'scenario': 'cafe-asdf1234',  # (Optional) If provided, mms_msg makes sure that all examples of the same speaker in a mixture share the same scenario
     # ... (any additional keys)
 }
 ```
@@ -114,6 +119,15 @@ example = {
     'speaker_id': [
         'A', 'B'  
     ],
+    'num_samples': {  # The structure under some keys mirrors the structure in 'audio_path'
+        'original_source': [
+          1234, 4321
+        ]
+    },
+    'source_id': [  # Reference to the source examples this mixture was created from
+        'asdf1234', 'asdf1235'
+    ],
+    ...
 }
 ```
 
