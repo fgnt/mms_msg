@@ -15,13 +15,12 @@ def create_async_data(example, n_ch_node=4):
     stos = example['sto']
     async_sigs = []
     sigs = example['audio_data']['observation']
-    example['audio_data']['observation_'] = {'synchronous': sigs}
     for i, sig in enumerate(sigs):
         sro = sros[i//n_ch_node]
         sto = stos[i//n_ch_node]
         async_sigs.append(sim_sro(sig[sto:], sro))
     min_len = np.min([len(sig) for sig in async_sigs])
-    example['audio_data']['observation_']['asynchronous'] = \
+    example['audio_data']['asynchronous_observation'] = \
         np.concatenate([sig[None, :min_len] for sig in async_sigs], axis=0)
     return example
 
