@@ -1,15 +1,13 @@
 import numpy as np
-from mms_msg.sampling.utils.rng import get_rng
-import paderbox as pb
+from mms_msg.sampling.utils.rng import get_rng_example
 
 
 def sample_sro_weights(example, num_nodes, sto_range, sro_range):
     """
     Samples the average sapling rate offset and sampling time offset for an example
     """
-    rng = get_rng(example['example_id'])
-    avg_sro = rng.uniform(*sro_range, size=num_nodes)
-    sto = rng.randint(*sto_range, size=num_nodes)
+    avg_sro = get_rng_example(example, 'sro').uniform(*sro_range, size=num_nodes)
+    sto = get_rng_example(example, 'sto').randint(*sto_range, size=num_nodes)
     example['avg_sro'] = avg_sro
     example['sto'] = sto
     return example
@@ -27,7 +25,7 @@ def sample_sro(example, sigma=.05, theta=.001, max_sro=400):
     avg_sro = example['avg_sro']
     sros = []
     for i, sro in enumerate(avg_sro):
-        seed = pb.utils.random_utils.str_to_seed(example['example_id'] + f'_mic_{i}')
+        seed = get_rng_example(example, 'sro_mic', i).randint(2**32)
         np.random.seed(seed)
         sros.append(ornstein_uhlenbeck(sro_seq_len, sro, sro, sigma, theta))
     example['sro_trajectory'] = sros
