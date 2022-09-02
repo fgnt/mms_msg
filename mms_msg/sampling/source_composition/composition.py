@@ -1,12 +1,12 @@
 import functools
 import operator
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Iterable, Union, Tuple
 
 import lazy_dataset
 import paderbox as pb
 from mms_msg.sampling.utils import cache_and_normalize_input_dataset, collate_fn
-from mms_msg.sampling.utils.rng import get_rng
+from mms_msg.sampling.utils.rng import get_rng, derive_rng
 from lazy_dataset import Dataset
 import numpy as np
 import logging
@@ -15,6 +15,14 @@ logger = logging.getLogger('composition')
 
 
 def sample_utterance_composition(input_dataset, rng, num_speakers):
+    """
+    Samples a "default" utterance composition.
+
+    Generates one example for each example in the `input_dataset`, so that
+    all examples appear equally often (given `num_speakers` is constant).
+    Examples are samples so that no two examples from the same speaker are
+    paired.
+    """
     speaker_ids = [example['speaker_id'] for example in input_dataset]
 
     # Generate list of example indices for meeting starts
@@ -30,8 +38,22 @@ def sample_utterance_composition(input_dataset, rng, num_speakers):
 
 
 def sample_reduced_utterance_composition(
-        input_dataset, rng, num_speakers, *, reduced_set, repetitions: int = 1
+        input_dataset, rng, num_speakers,
+        *,
+        reduced_set: Union[callable, str],
+        repetitions: int = 1
 ):
+    """
+    Samples a shorter "reduced" utterance composition.
+
+    Similar to `sample_utterance_composition`, but generates `repetitions`
+    many examples for each unique key returned by `reduced_set`.
+
+    Args:
+        reduced_set: Key function or str key to group by
+        repetitions: Number of examples generated for every unique key
+            returned by `reduced_set`
+    """
     if isinstance(reduced_set, str):
         reduced_set = operator.itemgetter(reduced_set)
 
@@ -52,18 +74,20 @@ def sample_reduced_utterance_composition(
     speaker_ids = [grouped_dataset[identifier][0]['speaker_id']
                    for identifier in speaker_identifier]
     speaker_composition = None
+    rng_ = derive_rng(rng)
     for _ in range(num_speakers):
         speaker_composition = extend_composition_example_greedy(
-            rng, speaker_ids, example_compositions=speaker_composition,
+            rng_, speaker_ids, example_compositions=speaker_composition,
         )
 
     # Select one random example for each speaker_identifier in each
     # composition
     speaker_composition_example_id = []
     for idx, composition in enumerate(speaker_composition):
+        rng_ = derive_rng(rng, idx)
         speaker_ids = [speaker_identifier[c] for c in composition]
         speaker_composition_example_id.append([
-            grouped_dataset[spk].random_choice(rng_state=rng)['example_id']
+            grouped_dataset[spk].random_choice(rng_state=rng_)['example_id']
             for spk in speaker_ids
         ])
 
@@ -73,8 +97,58 @@ def sample_reduced_utterance_composition(
     return speaker_composition_example_id
 
 
+def sample_low_resource_utterance_composition(
+        input_dataset, rng: np.random.Generator, num_speakers, *, length,
+        deterministic_grow=True,
+):
+    """
+    Args:
+        length: Size of the composition, i.e., number of examples to generate
+        deterministic_grow: Ensures that the initial examples don't change
+            when increasing `length`
+    """
+    spk_groups = input_dataset.groupby(operator.itemgetter('speaker_id'))
+    available_speakers = sorted(spk_groups.keys())
+
+    # Select speakers per example
+    if deterministic_grow:
+        rng_ = derive_rng(rng)
+    else:
+        rng_ = rng
+
+    def _choice(rng, x, size):
+        """
+        A stable random choice that doesn't change the order of the initial
+        elements when size changes
+        """
+        return rng.permutation(x)[:size]
+
+    speaker_constellations = [
+        _choice(rng_, available_speakers, num_speakers)
+        for _ in range(length)
+    ]
+
+    # Select one utterance per speaker in each example
+    if deterministic_grow:
+        rng_ = derive_rng(rng)
+    else:
+        rng_ = rng
+    examples = [[
+        spk_groups[spk].random_choice(rng_state=rng_)['example_id']
+        for spk in speaker_constellation
+    ] for speaker_constellation in speaker_constellations]
+
+    return examples
+
+
 @dataclass
 class DynamicDataset(Dataset):
+    """
+    The dataset class used for dynamic mixing. Generates a new utterance
+    composition at the start of every epoch.
+
+    Uses `np.random.randint` to sample different seeds for each epoch.
+    """
     composition_sampler: callable
     input_dataset: Iterable
     num_speakers: int
@@ -107,6 +181,9 @@ def _composition_list_to_dict(
         input_dataset: Dataset,
         dataset_name: str,
 ) -> dict:
+    """
+    Helper function that builds examples from indices for the `input_dataset`.
+    """
     base = {}
     for idx, composition in enumerate(composition):
         # Combine the sampled examples to one multi-speaker example with a
@@ -153,15 +230,35 @@ def _composition_list_to_dict(
 
 def get_composition(
         input_dataset: Iterable,
-        num_speakers: int,
+        num_speakers: Union[int, Tuple[int, ...]],
         composition_sampler=sample_utterance_composition,
-        rng: [int, bool] = False,
-):
+        rng: Union[int, bool] = False,
+) -> dict:
     """
     Build a composition as a `dict` from examples in `input_dataset`.
+
+    Note:
+        Use the function `get_composition_dataset` if you use `lazy_dataset`.
+        The `get_composition` function does not support dynamic mixing because
+        it cannot return dynamix mixtures as a dict.
+
+    Args:
+        input_dataset: The dataset to draw examples from
+        num_speakers: The number of speakers. It can either be an int or a
+            tuple of ints, in which case the number of speakers is randomly
+            drawn from that list for each example.
+            As an example, `num_speakers=(1, 2, 2, 3)` would generate
+            1-spk and 3-spk compositions with a probability of 0.25 each and
+            2-spk compositions with a probability of 0.5.
+        composition_sampler: The composition sampling algorithm.
+            See `sample_utterance_composition`,
+            `sample_reduced_utterance_composition`
+            and `sample_low_resource_utterance_composition`
+        rng: Either an `int` or `False`. If it is an int, it is used as a
+            seed for generating the composition. `True` is only supported by
+            `get_composition_dataset`.
     """
     input_dataset = cache_and_normalize_input_dataset(input_dataset)
-
 
     # Infer name from dataset. Make sure that all examples come
     # from the same dataset (otherwise the dataset name is not unique)
@@ -216,7 +313,27 @@ def get_composition_dataset(
 ):
     """
     Build a composition as a `lazy_dataset.Dataset` from examples in
-    `input_dataset`
+    `input_dataset`.
+
+    Note:
+        If you don't want to use `lazy_dataset`, use `get_composition`.
+        Be aware that `get_composition` doesn't support dynamic mixing.
+
+    Args:
+        input_dataset: The dataset to draw examples from
+        num_speakers: The number of speakers. It can either be an int or a
+            tuple of ints, in which case the number of speakers is randomly
+            drawn from that list for each example.
+            As an example, `num_speakers=(1, 2, 2, 3)` would generate
+            1-spk and 3-spk compositions with a probability of 0.25 each and
+            2-spk compositions with a probability of 0.5.
+        composition_sampler: The composition sampling algorithm.
+            See `sample_utterance_composition`,
+            `sample_reduced_utterance_composition`
+            and `sample_low_resource_utterance_composition`
+        rng: Either an `int` or `False`. If it is an int, it is used as a
+            seed for generating the composition. `True` is only supported by
+            `get_composition_dataset`.
     """
     if rng is True:
         return DynamicDataset(
@@ -358,7 +475,7 @@ def test_example_composition(a, b, speaker_ids):
     # Ensure that a speaker is not mixed with itself
     # This also ensures that an utterance is not mixed with itself
     assert np.all(speaker_ids[a] != speaker_ids[b]), (
-    'speaker duplicate', len(a) - np.sum(speaker_ids[a] != speaker_ids[b]))
+        'speaker duplicate', len(a) - np.sum(speaker_ids[a] != speaker_ids[b]))
 
     # Ensure that any pair of utterances does not appear more than once
     tmp = [tuple(sorted(ab)) for ab in zip(a, b)]
