@@ -79,6 +79,57 @@ Supported speech mixture databases:
 Planned:
  * [WHAM! & WHAMR!](https://wham.whisper.ai/)
 
+## Using Generated Mixtures
+
+The mixture generator uses [lazy_dataset](https://github.com/fgnt/lazy_dataset).
+While the core functionality of mms_msg can be used without lazy_dataset, some features (like dynamic mixing and the database abstraction) are not available then.
+
+```python
+from mms_msg.databases.classical.full_overlap import WSJ2Mix
+from mms_msg.sampling.utils import collate_fn
+db = WSJ2Mix()
+
+# Get a train dataset with dynamic mixing
+# This dataset only emits the metadata of the mixtures, it doesn't load
+# the data yet
+ds = db.get_dataset('train_si284_rng')
+
+# The data can be loaded by mapping a database's load_example function
+ds = ds.map(db.load_example)  
+
+# Other dataset modifications (see lazy_dataset doc)
+ds = ds.shuffle(reshuffle=True)
+ds = ds.batch(batch_size=8).map(collate_fn)
+# ...
+
+# Parallelize data loading with lazy_dataset
+ds = ds.prefetch(num_workers=8, buffer_size=16)
+
+# The dataset can now be used in any training loop
+for example in ds:
+    # ... do fancy stuff with the example.
+    # The loaded audio data is in example['audio_data']
+    print(example)
+```
+
+Any other data modification routines can be mapped to `ds` directly after loading the example.
+
+### Using the torch DataLoader
+
+A `lazy_dataset.Dataset` can be plugged into a `torch.utils.data.DataLoader`:
+
+```python
+from mms_msg.databases.classical.full_overlap import WSJ2Mix
+db = WSJ2Mix()
+ds = db.get_dataset('train_si284_rng').map(db.load_example)  
+
+# Parallelize data loading with torch.utils.data.DataLoader
+from torch.utils.data import DataLoader
+loader = DataLoader(ds, batch_size=8, shuffle=True, num_workers=8)
+
+for example in loader:
+    print(example)
+```
 
 ## Planned Features:
   * WHAM! background noise sampling
