@@ -82,7 +82,7 @@ Planned:
 
 ## Planned Features:
   * WHAM! background noise sampling
-  * Sampling Rate Offset (SRO) utilities (see [paderwasn](https://github.com/fgnt/paderwasn))
+  * ~~Sampling Rate Offset (SRO) utilities (see [paderwasn](https://github.com/fgnt/paderwasn))~~
   * Markov Model-based dialogue sampling (refer to [this paper](https://arxiv.org/abs/2204.11232))
 
 ## Extending MMS-MSG
@@ -170,7 +170,7 @@ db = MyDatabase('path/to/source/database.json')
 
 The structure of the dataset sampling pipeline is described in the next section.
 
-### Pipline structure
+### Pipeline structure
 
 This is an example of a simple sampling pipeline for a single dataset:
 
@@ -253,5 +253,10 @@ A more practical example is given [in this notebook](notebooks/extending_mms_msg
 ## Cite
 MMS-MSG was proposed in the following publication:
 ```bibtex
-TODO: insert bibtex!
-```
+@inproceedings{
+title={MMS-MSG: A Multi-purpose Multi-Speaker Mixture Signal Generator},
+author={Tobias Cord-Landwehr and Thilo von Neumann and Christoph Boeddeker and Reinhold Haeb-Umbach},
+year={2022},
+booktitle={International Workshop on Acoustic Signal Enhancement (IWAENC)},
+publisher = {{IEEE}},
+}```
