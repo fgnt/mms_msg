@@ -18,5 +18,6 @@ setup(
         'cached_property',
         'numpy',
         'scipy',
+        'click',
     ],
 )
