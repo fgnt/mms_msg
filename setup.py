@@ -19,5 +19,6 @@ setup(
         'numpy',
         'scipy',
         'click',
+        'dlp_mpi'
     ],
 )
