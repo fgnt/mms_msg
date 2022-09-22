@@ -1,8 +1,8 @@
 """
 Example calls:
-python -m sms_wsj.database.wsj.write_wav with dst_dir=/DEST/DIR wsj_root=/WSJ/ROOT/DIR --sample_rate=8000
+python -m mms_msg.databases.single_speaker.wsj.resample_wsj with dst_dir=/DEST/DIR wsj_root=/WSJ/ROOT/DIR --sample_rate=8000
 
-mpiexec -np 20 python -m sms_wsj.database.wsj.write_wav with dst_dir=/DEST/DIR wsj_root=/WSJ/ROOT/DIR sample_rate=8000
+mpiexec -np 20 python -m mms_msg.databases.single_speaker.wsj.resample_wsj with dst_dir=/DEST/DIR wsj_root=/WSJ/ROOT/DIR sample_rate=8000
 
 """
 
