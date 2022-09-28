@@ -2,15 +2,7 @@
 
 ![GitHub Actions](https://github.com/fgnt/mms_msg/actions/workflows/pytest.yml/badge.svg)
 
----
-**NOTE:**
 
-This repository currently still is **under construction**.
-We will update, extend and modify parts of the code within the next weeks.
-Also, example notebooks for using MMS-MSG and example code to reproduce our 
-Baseline model will be provided on a later date. 
-
----
 MMS-MSG is a highly modular and flexible framework for the generation of speech mixtures.
 It extends the code-base of the [SMS-WSJ](https://github.com/fgnt/sms_wsj) database 
 for mixture signal generation to be able to generate both meeting-style speech mixtures and 
@@ -135,7 +127,10 @@ for example in loader:
   * WHAM! background noise sampling
   * ~~Sampling Rate Offset (SRO) utilities (see [paderwasn](https://github.com/fgnt/paderwasn))~~
   * Markov Model-based dialogue sampling (refer to [this paper](https://arxiv.org/abs/2204.11232))
-
+---
+**NOTE:**
+Example recipes to reproduce our baseline results are still under construction and will be provided at a later date.
+---
 ## Extending MMS-MSG
 
 ### Example structure
@@ -304,7 +299,7 @@ A more practical example is given [in this notebook](notebooks/extending_mms_msg
 ## Cite
 MMS-MSG was proposed in the following publication:
 ```bibtex
-@inproceedings{
+@inproceedings{cordlandwehr2022mms_msg,
 title={MMS-MSG: A Multi-purpose Multi-Speaker Mixture Signal Generator},
 author={Tobias Cord-Landwehr and Thilo von Neumann and Christoph Boeddeker and Reinhold Haeb-Umbach},
 year={2022},
