@@ -114,7 +114,7 @@ class ReverberantSpeakerMixtures(AnechoicSpeakerMixtures):
     def get_mixture_dataset(self, name: str, rng: np.random.Generator) -> Dataset:
         return super().get_mixture_dataset(name, rng).map(
             RIRSampler(self.rir_database.get_dataset(name))
-        )
+        ).map(self.snr_sampler)
 
     def load_example(self, example: dict) -> dict:
         example = load_audio(example, keys.ORIGINAL_SOURCE, keys.RIR)
