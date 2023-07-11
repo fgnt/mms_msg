@@ -55,6 +55,7 @@ def SMSWSJ(
         source_json_path=database_jsons / 'wsj_8k.json',
         scenario_json_path=data_dir.db_dir / 'sms_wsj' / 'rirs' / 'scenarios.json',
         num_speakers=2,
+        channel_slice=None,
 ):
     """
     A database similar to the SMS-WSJ database
@@ -67,4 +68,6 @@ def SMSWSJ(
         snr_sampler=UniformSNRSampler(20, 30),
         rir_database=SMSWSJRIRDatabase(scenario_json_path),
         source_filter=filter_punctuation_pronunciation,
+        truncate_to_shortest=False,
+        channel_slice=channel_slice,
     )
