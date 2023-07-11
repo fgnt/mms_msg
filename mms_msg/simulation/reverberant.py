@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import numpy as np
 from scipy.signal import fftconvolve
 
@@ -81,6 +83,7 @@ def reverberant_scenario_map_fn(
     # h shape: (K, [D,] T)
     assert 2 <= h.ndim <= 3, h.shape
     if channel_slice is not None:
+        channel_slice = get_channel_slice(channel_slice, total_num_channels=h.shape[-2])
         h = h[..., channel_slice, :]
         example[keys.RIR] = h
 
@@ -248,3 +251,83 @@ def get_rir_start_sample(h, level_ratio=1e-1):
     # Finds first occurrence of max
     rir_start_sample = np.argmax(larger_than_threshold)
     return rir_start_sample
+
+
+def get_channel_slice(
+        channel_slice,
+        total_num_channels: int = None,
+        rng: np.random.Generator = None,
+        squeeze: bool = False,
+):
+    """
+    Creates a `slice` from `channel_slice`.
+
+    If `channel_slice` is a:
+     - `slice`: Return `channel_slice` unchanged
+     - `int`: Select the first `channel_slice` channels
+     - `None` or `"all"`: Select all channels
+     - `"one_random"`: Select one random channel. Requires `total_num_channels`
+        to be set.
+    """
+    if isinstance(channel_slice, slice):
+        if squeeze and channel_slice.stop - channel_slice.start == 1:
+            channel_slice = channel_slice.start
+        return channel_slice
+    if isinstance(channel_slice, int):
+        if squeeze and channel_slice == 1:
+            return 0
+        else:
+            return slice(channel_slice)
+    if channel_slice is None or channel_slice == 'all':
+        return slice(None)
+    if channel_slice == 'one_random':
+        if total_num_channels is None:
+            raise ValueError(
+                f'total_num_channels must be given to select a random channel'
+            )
+        if rng is None:
+            rng = np.random.default_rng()
+        channel = rng.integers(0, total_num_channels)
+        if squeeze:
+            return channel
+        else:
+            return slice(channel, channel + 1)
+    raise ValueError(f'Unknown channel_slice={channel_slice}')
+
+
+def slice_channel(
+        example,
+        *,
+        channel_slice: 'int | slice | Literal["one_random"] | Literal["all"]',
+        squeeze: bool = False
+):
+    """
+    Function to map onto the dataset to slice a channel after the RIRs have been loaded
+    and before the scenario_map_fn has been applied.
+
+    This is a deterministic alternative to the `channel_slice` argument in `reverberant_scenario_map_fn`.
+    """
+    rng = None
+    if channel_slice == 'one_random':
+        from mms_msg.sampling.utils.rng import get_rng_example
+        rng = get_rng_example(example, 'slice_channel')
+    channel_slice = get_channel_slice(
+        channel_slice, total_num_channels=example['audio_data']['rir'][0].shape[0], rng=rng,
+        squeeze=squeeze
+    )
+    rir = example['audio_data']['rir']
+    if isinstance(example['audio_data']['rir'], list):
+        rir = [r[channel_slice, :] for r in rir]
+    else:
+        rir = rir[:, channel_slice, :]
+    example['audio_data']['rir'] = rir
+    return example
+
+
+@dataclass
+class SliceChannel:
+    channel_slice: 'int | slice | Literal["one_random"] | Literal["all"]'
+    squeeze: bool = False
+
+    def __call__(self, example):
+        return slice_channel(example, channel_slice=self.channel_slice, squeeze=self.squeeze)
