@@ -73,13 +73,16 @@ def reverberant_scenario_map_fn(
     # Estimate start sample first, to make it independent of channel_mode
     rir_start_sample = np.array([get_rir_start_sample(h_k) for h_k in h])
 
-    if channel_slice is not None:
-        if isinstance(h, list):
-            # All RIRs should have the same length
-            h = np.stack(h)
-        h = h[:, channel_slice, :]
+    if isinstance(h, list):
+        # All RIRs should have the same length
+        h = np.stack(h)
 
-    _, D, rir_length = h.shape
+    # Support single-channel RIRs (no channel dimension)
+    # h shape: (K, [D,] T)
+    assert 2 <= h.ndim <= 3, h.shape
+    if channel_slice is not None:
+        h = h[..., channel_slice, :]
+        example[keys.RIR] = h
 
     # Use 50 milliseconds as early rir part, excluding the propagation delay
     #    (i.e. "rir_start_sample")
@@ -104,6 +107,20 @@ def reverberant_scenario_map_fn(
     T = example[keys.NUM_SAMPLES][keys.OBSERVATION]
     s = audio_data[keys.ORIGINAL_SOURCE]
 
+    rir_length = h.shape[-1]
+    if h.ndim == 2:
+        pad_shape = (T,)
+
+        def _convolve(s, h):
+            return fftconvolve(s, h, axes=-1)
+    else:
+        pad_shape = (h.shape[1], T)
+
+        def _convolve(s, h):
+            c = fftconvolve(s[..., None, :], h, axes=-1)
+            assert c.shape[-2] == h.shape[-2]
+            return c
+
     # In some databases (e.g., WSJ) the utterances are not mean normalized. This
     # leads to jumps when padding with zeros or concatenating recordings.
     # We mean-normalize here to eliminate these jumps
@@ -115,15 +132,11 @@ def reverberant_scenario_map_fn(
         the (unpadded) convolved signals with offsets and the padded convolved
         signals"""
         assert len(s) == len(h), (len(s), len(h))
-        x = [
-            fftconvolve(s_[..., None, :], h_, axes=-1)
-            for s_, h_ in zip(s, h)
-        ]
+        x = [_convolve(s_, h_) for s_, h_ in zip(s, h)]
 
         assert len(x) == len(example[keys.NUM_SAMPLES][keys.ORIGINAL_SOURCE])
         for x_, T_ in zip(x, example[keys.NUM_SAMPLES][keys.ORIGINAL_SOURCE]):
-            assert x_.shape == (D, T_ + rir_length - 1), (
-                x_.shape, D, T_ + rir_length - 1)
+            assert x_.shape[-1] == T_ + rir_length - 1, (x_.shape, T_ + rir_length - 1)
 
         assert len(x) == len(rir_offset) == K
         return x
@@ -152,7 +165,7 @@ def reverberant_scenario_map_fn(
     )
 
     audio_data[keys.SPEECH_IMAGE] = pad_sparse(
-        audio_data[keys.ORIGINAL_REVERBERATED], rir_offset, (D, T))
+        audio_data[keys.ORIGINAL_REVERBERATED], rir_offset, pad_shape)
     example[keys.NUM_SAMPLES][keys.ORIGINAL_REVERBERATED] = [
         a.shape[-1] for a in audio_data[keys.ORIGINAL_REVERBERATED]
     ]
@@ -170,7 +183,7 @@ def reverberant_scenario_map_fn(
             get_convolved_signals(h_early)
         )
         audio_data[keys.SPEECH_REVERBERATION_EARLY] = pad_sparse(
-            audio_data[keys.ORIGINAL_REVERBERATION_EARLY], rir_offset, (D, T))
+            audio_data[keys.ORIGINAL_REVERBERATION_EARLY], rir_offset, pad_shape)
 
         if details:
             audio_data[keys.RIR_EARLY] = h_early
@@ -187,12 +200,12 @@ def reverberant_scenario_map_fn(
             get_convolved_signals(h_tail)
         )
         audio_data[keys.SPEECH_REVERBERATION_TAIL] = pad_sparse(
-            audio_data[keys.ORIGINAL_REVERBERATION_TAIL], rir_offset, (D, T))
+            audio_data[keys.ORIGINAL_REVERBERATION_TAIL], rir_offset, pad_shape)
 
         if details:
             audio_data[keys.RIR_TAIL] = h_tail
 
-    clean_mix = sum(audio_data[keys.SPEECH_IMAGE], np.zeros((D, T), dtype=s[0].dtype))
+    clean_mix = sum(audio_data[keys.SPEECH_IMAGE], np.zeros(pad_shape, dtype=s[0].dtype))
     audio_data[keys.OBSERVATION] = clean_mix
     return example
 
