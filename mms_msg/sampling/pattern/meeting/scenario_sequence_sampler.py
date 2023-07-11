@@ -102,7 +102,7 @@ def _get_activity(scenarios, examples):
     ])
 
 
-def sample_balanced(scenarios: list, examples: list, rng: np.random.Generator):
+def sample_balanced(scenarios: list, examples: list, rng: np.random.Generator, *, eps=1e-7):
     """
     Samples the scenarios so that their activity (in num samples) is balanced.
 
@@ -115,16 +115,46 @@ def sample_balanced(scenarios: list, examples: list, rng: np.random.Generator):
             the keys `'scenario'` and `'num_samples.observation'`. Used to
             find the current activity for each scenario.
         rng: A random number generator
+        eps: Used as the activity when a speaker is not active. A small value
+            should have no effect. A large value changes the initial sampling.
+            This can be set to a large value (e.g., average utterance length)
+            when no enrollment phase is used
+            and the initial sampling should be random.
     """
     activities = _get_activity(scenarios, examples)
+    # Avoid division by zero. This can happen when a speaker has not been active
+    # A small epsilon shouldn't change the result
+    activities = np.where(activities > 0, activities, eps)
     p_scenario = 1 / activities
     p_scenario = p_scenario / np.sum(p_scenario)
     assert np.isclose(np.sum(p_scenario), 1)
     return rng.choice(scenarios, p=p_scenario)
 
 
-def sample_balanced_no_repeat(scenarios: list, examples: list, rng: np.random.Generator):
+def sample_balanced_no_repeat(scenarios: list, examples: list, rng: np.random.Generator, *, eps=1e-7):
+    """
+    Samples the scenarios so that their activity (in num samples) is balanced, but disallow
+    repetitions of the same scenario.
+
+    Samples so that the number of samples for each scenario is approximately
+    equal (we can only guarantee that when sampling continues forever).
+
+    Args:
+        scenarios: The scenarios to sample from
+        examples: The examples already sampled. Should be a list of dicts with
+            the keys `'scenario'` and `'num_samples.observation'`. Used to
+            find the current activity for each scenario.
+        rng: A random number generator
+        eps: Used as the activity when a speaker is not active. A small value
+            should have no effect. A large value changes the initial sampling.
+            This can be set to a large value (e.g., average utterance length)
+            when no enrollment phase is used
+            and the initial sampling should be random.
+    """
     activities = _get_activity(scenarios, examples)
+    # Avoid division by zero. This can happen when a speaker has not been active
+    # A small epsilon shouldn't change the result
+    activities = np.where(activities > 0, activities, eps)
     p_scenario = 1 / activities
     if examples:
         last_scenario = sorted(examples, key=lambda x: x['offset']['original_source'] + x['num_samples']['observation'])[-1]['scenario']
