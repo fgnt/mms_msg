@@ -29,6 +29,7 @@ class _MeetingSampler:
     duration: int
     overlap_sampler: OverlapSampler
     scenario_sequence_sampler: callable = sample_balanced
+    sample_enrollment_phase: bool = True
 
     def __post_init__(self):
         if isinstance(self.scenario_sequence_sampler, str):
@@ -57,6 +58,12 @@ class _MeetingSampler:
         scenario_sequence_rng = get_rng_example(example, 'speaker_sequence')
 
         examples = []
+
+        # The enrollment phase makes sure that every speaker is active at least once
+        # and that the base examples appear in the generated meeting
+        # If the enrollment phase is disabled, we do not guarantee anything
+        if not self.sample_enrollment_phase:
+            base_examples = []
 
         # Add base examples to be sure that each speaker is active at least once
         while (
@@ -182,9 +189,11 @@ def sample_meeting_from_full_overlap(
             maximum_overlap=40000
         ),
         scenario_sequence_sampler: callable = sample_balanced,
+        sample_enrollment_phase: bool = True
 ):
     _MeetingSampler(
-        input_dataset, duration, overlap_sampler, scenario_sequence_sampler
+        input_dataset, duration, overlap_sampler, scenario_sequence_sampler,
+        sample_enrollment_phase,
     )(example)
 
 
@@ -217,6 +226,7 @@ class MeetingSampler(pt.Configurable):
             maximum_overlap=8 * 8000,
         )
     )
+    sample_enrollment_phase: bool = True
 
     def __call__(self, dataset: Dataset):
         """
@@ -235,4 +245,5 @@ class MeetingSampler(pt.Configurable):
             duration=self.duration,
             scenario_sequence_sampler=self.scenario_sequence_sampler,
             overlap_sampler=self.overlap_sampler,
+            sample_enrollment_phase=self.sample_enrollment_phase,
         )
