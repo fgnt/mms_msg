@@ -4,6 +4,10 @@ from typing import Tuple
 
 from mms_msg.sampling.utils.rng import get_rng_example
 
+__all__ = [
+    'sample_uniform_snr',
+    'UniformSNRSampler',
+]
 
 def sample_uniform_snr(example, *, min_snr: float = 20, max_snr: float = 30):
     example['snr'] = float(

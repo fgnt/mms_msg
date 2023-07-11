@@ -18,6 +18,10 @@ from mms_msg.sampling.utils.rng import get_rng_example
 
 logger = logging.getLogger('meeting')
 
+__all__ = [
+    'MeetingSampler',
+    'sample_meeting_from_full_overlap',
+]
 
 @dataclass
 class _MeetingSampler:
