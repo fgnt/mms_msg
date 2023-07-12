@@ -2,10 +2,13 @@ from pathlib import Path
 from typing import Callable
 
 import numpy as np
+import typing
+if typing.TYPE_CHECKING:
+    from typing import Literal
 
 import lazy_dataset.database
 from lazy_dataset import Dataset
-from lazy_dataset.database import JsonDatabase, Database
+from lazy_dataset.database import Database
 from mms_msg.databases.database import MMSMSGDatabase
 from mms_msg import keys
 from mms_msg.sampling.environment.rir import RIRSampler

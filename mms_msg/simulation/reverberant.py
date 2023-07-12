@@ -2,6 +2,9 @@ from dataclasses import dataclass
 
 import numpy as np
 from scipy.signal import fftconvolve
+import typing
+if typing.TYPE_CHECKING:
+    from typing import Literal
 
 from mms_msg import keys
 from mms_msg.simulation.anechoic import pad_sparse, get_scale
@@ -27,14 +30,10 @@ def reverberant_scenario_map_fn(
     you use this DB.
 
     Args:
-        compute_scale_on_padded_signals:
-        num_channels:
         details:
         early_rir_samples:
         normalize_sources:
         example: Example dictionary.
-        sync_speech_source: pad and/or cut the source signal to match the
-            length of the observations. Considers the offset.
         add_speech_reverberation_early:
         add_speech_reverberation_tail:
             Calculate the speech_reverberation_tail signal.
