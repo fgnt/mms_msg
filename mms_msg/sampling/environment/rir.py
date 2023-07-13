@@ -1,9 +1,12 @@
 from dataclasses import dataclass
-from pathlib import Path
 
 import lazy_dataset
-from lazy_dataset.database import JsonDatabase
 from mms_msg.databases.reverberation.sms_wsj import SMSWSJRIRDatabase
+
+__all__ = [
+    'sample_rirs',
+    'RIRSampler',
+]
 
 
 def sample_rirs(example: dict, *, rir_dataset: lazy_dataset.Dataset):

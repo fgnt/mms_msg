@@ -2,12 +2,11 @@ from lazy_dataset.database import JsonDatabase
 from mms_msg import keys
 from mms_msg.databases.database import MMSMSGDatabase
 from mms_msg.sampling.environment.rir import RIRSampler
-from mms_msg.sampling.source_composition import get_composition_dataset
+from mms_msg.sampling.source_composition import get_composition_dataset, sample_utterance_composition
 from mms_msg.simulation.anechoic import anechoic_scenario_map_fn
 from mms_msg.simulation.noise import white_microphone_noise
-from mms_msg.simulation.reverberant import reverberant_scenario_map_fn
+from mms_msg.simulation.reverberant import reverberant_scenario_map_fn, slice_channel
 from mms_msg.simulation.utils import load_audio
-from paderbox.io.data_dir import database_jsons
 
 
 class AnechoicMeetingDatabase(MMSMSGDatabase):
@@ -19,6 +18,7 @@ class AnechoicMeetingDatabase(MMSMSGDatabase):
             scaling_sampler,
             snr_sampler,
             source_filter=None,
+            composition_sampler=sample_utterance_composition,
     ):
         super().__init__(source_database)
 
@@ -30,6 +30,7 @@ class AnechoicMeetingDatabase(MMSMSGDatabase):
             def source_filter(_):
                 return True
         self.source_filter = source_filter
+        self.composition_sampler = composition_sampler
 
     def get_mixture_dataset(self, name, rng):
         input_ds = self.source_database.get_dataset(name).filter(self.source_filter)
@@ -37,7 +38,8 @@ class AnechoicMeetingDatabase(MMSMSGDatabase):
         ds = get_composition_dataset(
             input_dataset=input_ds,
             num_speakers=self.num_speakers,
-            rng=rng
+            rng=rng,
+            composition_sampler=self.composition_sampler,
         )
         ds = ds.map(self.scaling_sampler)
         ds = ds.map(self.meeting_sampler(input_ds))
@@ -61,7 +63,9 @@ class ReverberantMeetingDatabase(AnechoicMeetingDatabase):
             scaling_sampler,
             snr_sampler,
             rir_database,
-            source_filter=None
+            source_filter=None,
+            composition_sampler=sample_utterance_composition,
+            channel_slice=None,
     ):
         super().__init__(
             source_database,
@@ -69,9 +73,11 @@ class ReverberantMeetingDatabase(AnechoicMeetingDatabase):
             meeting_sampler,
             scaling_sampler,
             snr_sampler,
-            source_filter
+            source_filter,
+            composition_sampler,
         )
         self.rir_database = rir_database
+        self.channel_slice = channel_slice
 
     def get_mixture_dataset(self, name, rng):
         input_ds = self.source_database.get_dataset(name).filter(self.source_filter)
@@ -79,7 +85,8 @@ class ReverberantMeetingDatabase(AnechoicMeetingDatabase):
         ds = get_composition_dataset(
             input_dataset=input_ds,
             num_speakers=self.num_speakers,
-            rng=rng
+            rng=rng,
+            composition_sampler=self.composition_sampler,
         )
         ds = ds.map(self.scaling_sampler)
         ds = ds.map(RIRSampler(self.rir_database.get_dataset(name)))
@@ -89,6 +96,8 @@ class ReverberantMeetingDatabase(AnechoicMeetingDatabase):
 
     def load_example(self, example):
         example = load_audio(example, keys.ORIGINAL_SOURCE, keys.RIR)
+        if self.channel_slice is not None:
+            example = slice_channel(example, channel_slice=self.channel_slice, squeeze=True)
         example = reverberant_scenario_map_fn(example)
         example = white_microphone_noise(example)
         return example

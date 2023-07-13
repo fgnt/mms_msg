@@ -141,6 +141,50 @@ def sample_low_resource_utterance_composition(
     return examples
 
 
+def sample_fast_utterance_composition(
+        input_dataset, rng: np.random.Generator, num_speakers, *, length=None,
+):
+    """
+    A fast composition sampler that draws random utterances from speaker groups without
+    guaranteeing that utterances or speakers appear equally often.
+
+    Args:
+        length: Size of the composition, i.e., number of examples to generate
+    """
+    # Group by speakers
+    spk_groups = input_dataset.groupby(operator.itemgetter('speaker_id'))
+    available_speakers = sorted(spk_groups.keys())
+
+    if length is None:
+        length = len(input_dataset)
+
+    # Draw speakers for each example
+    _speakers = rng.permutation(available_speakers)
+    speaker_constellations = []
+    for _ in range(length):
+        if len(_speakers) < num_speakers:
+            _speakers = rng.permutation(available_speakers)
+
+        speaker_constellations.append(_speakers[:num_speakers])
+        _speakers = _speakers[num_speakers:]
+
+    # Select one utterance per speaker in each example
+    _spk_groups = {k: list(v.map(lambda x: x['example_id'])) for k, v in spk_groups.items()}
+    _pspk_groups = {k: rng.permutation(v) for k, v in _spk_groups.items()}
+    _spk_indices = {k: 0 for k in spk_groups.keys()}
+    examples = []
+    for speaker_constellation in speaker_constellations:
+        example = []
+        for speaker in speaker_constellation:
+            if _spk_indices[speaker] >= len(_pspk_groups[speaker]):
+                _pspk_groups[speaker] = rng.permutation(_spk_groups[speaker])
+                _spk_indices[speaker] = 0
+            example.append(_pspk_groups[speaker][_spk_indices[speaker]])
+            _spk_indices[speaker] += 1
+        examples.append(example)
+    return examples
+
+
 @dataclass
 class DynamicDataset(Dataset):
     """
@@ -176,6 +220,54 @@ class DynamicDataset(Dataset):
         return len(self.input_dataset)
 
 
+def collate_example_list(
+        examples: list,
+        dataset_name: str = None,
+        example_id_prefix=None
+):
+    # Combine the sampled examples to one multi-speaker example with a
+    # format similar to SMS-WSJ
+    example = collate_fn(examples)
+    example['num_speakers'] = len(example['speaker_id'])
+    example['source_dataset'] = example['dataset']
+
+    # The new dataset name is a combination of the given dataset name and
+    # the dataset name of the base example. This only works if all examples
+    # come from the same source dataset
+    assert pb.utils.misc.all_equal(example['source_dataset']), (
+        'Dataset name is not equal! Implement something new.'
+    )
+    if dataset_name is not None:
+        example['dataset'] = dataset_name
+
+    # Move audio_path.observation and num_samples to 'original_source' to
+    # match SMS-WSJ and to make room for additional keys in the audio_path
+    # and num_samples sub-dicts
+    example['audio_path']['original_source'] = example['audio_path'].pop('observation')
+    if 'audio_data' in example:
+        example['audio_data']['original_source'] = example['audio_data'].pop('observation')
+
+    example['num_samples'] = {
+        'original_source': pb.utils.nested.get_by_path(
+            example, 'num_samples.observation'
+        )
+    }
+
+    # Check that there are no duplicate speakers
+    assert pb.utils.misc.all_unique(example['speaker_id']), example['speaker_id']
+
+    # Build an example ID for each example
+    example_id_parts = example['example_id']
+    if example_id_prefix is not None:
+        example_id_parts = (example_id_prefix,) + tuple(example_id_parts)
+    example_id = '_'.join(map(str, example_id_parts))
+
+    example['source_id'] = example['example_id']
+    example['example_id'] = example_id
+
+    return example
+
+
 def _composition_list_to_dict(
         composition: list,
         input_dataset: Dataset,
@@ -186,44 +278,17 @@ def _composition_list_to_dict(
     """
     base = {}
     for idx, composition in enumerate(composition):
-        # Combine the sampled examples to one multi-speaker example with a
-        # format similar to SMS-WSJ
-        example = collate_fn([input_dataset[x] for x in composition])
-        example['num_speakers'] = len(example['speaker_id'])
-        example['source_dataset'] = example['dataset']
-
-        # The new dataset name is a combination of the given dataset name and
-        # the dataset name of the base example. This only works if all examples
-        # come from the same source dataset
-        assert pb.utils.misc.all_equal(example['source_dataset']), (
-            'Dataset name is not equal! Implement something new.'
+        example = collate_example_list(
+            [input_dataset[x] for x in composition],
+            dataset_name=dataset_name,
+            example_id_prefix=idx,
         )
-        example['dataset'] = dataset_name
 
-        # Move audio_path.observation and num_samples to 'original_source' to
-        # match SMS-WSJ and to make room for additional keys in the audio_path
-        # and num_samples sub-dicts
-        example['audio_path'] = {
-            'original_source': example['audio_path'].pop('observation')
-        }
-        example['num_samples'] = {
-            'original_source': pb.utils.nested.get_by_path(
-                example, 'num_samples.observation'
-            )
-        }
-
-        # Check that there are no duplicate speakers
-        assert pb.utils.misc.all_unique(example['speaker_id']), example['speaker_id']
-
-        # Build an example ID for each example
-        example_id = '_'.join([str(idx), *map(str, example['example_id'])])
+        example_id = example['example_id']
         assert example_id not in base, (
             'Duplicate example IDs found! Modify the example ID generation '
             'code to avoid this!'
         )
-        example['source_id'] = example['example_id']
-        example['example_id'] = example_id
-
         base[example_id] = example
     return base
 
@@ -412,7 +477,7 @@ def extend_composition_example_greedy(
            ['Eve', 'Bob', 'Alice']], dtype='<U5')
     """
     if example_compositions is None:
-        example_compositions = np.arange(len(speaker_ids), dtype=np.int)
+        example_compositions = np.arange(len(speaker_ids), dtype=int)
         example_compositions = rng.permutation(example_compositions)[:, None]
         return example_compositions
 
@@ -422,7 +487,7 @@ def extend_composition_example_greedy(
         set([speaker_ids[c_] for c_ in c]) for c in example_compositions
     ]
 
-    candidates = np.arange(len(speaker_ids), dtype=np.int)
+    candidates = np.arange(len(speaker_ids), dtype=int)
     speaker_ids = np.array(speaker_ids)
     for _ in range(tries):
         candidates = rng.permutation(candidates)
