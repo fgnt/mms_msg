@@ -120,6 +120,18 @@ def sample_balanced(scenarios: list, examples: list, rng: np.random.Generator, *
             This can be set to a large value (e.g., average utterance length)
             when no enrollment phase is used
             and the initial sampling should be random.
+
+    Comment on `eps`:
+    The sampler receivers empty activities when the enrollment phase is disabled in the
+    meeting sampler, thus the `eps` is required to avoid division by zero.
+    It makes sense to set `eps` to a large value (e.g., average utterance length) when
+    an enrollment phase is not desired since it is still very likely that
+    the initial sampling will be the same as the enrollment phase (i.e., all speakers
+    are active once in a row before a more realistic sampling begins) when `eps` is small.
+    Setting `eps` to a value that is much larger than the meeting length would result
+    in an unbalanced sampling similar to `sample_random`, but when `eps` is set to a
+    reasonable value, the initial sampling will be random and the sampling will become
+    balanced after a few examples, which is more realistic than the enrollment phase.
     """
     activities = _get_activity(scenarios, examples)
     # Avoid division by zero. This can happen when a speaker has not been active
