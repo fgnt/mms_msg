@@ -19,7 +19,7 @@ class DistributionModel:
         standard_deviation: (read only) standard deviation
         allow_negative_samples: Allow negative samples, useful for debugging if no negative samples are expected
     """
-    def __init__(self, samples: Optional[list[Union[int, float]]] = None, bin_size: Union[int, float] = 100,
+    def __init__(self, samples: Optional[List[Union[int, float]]] = None, bin_size: Union[int, float] = 100,
                  allow_negative_samples: bool = False):
         """
         :param bin_size: size of the histogram bins
@@ -79,7 +79,7 @@ class DistributionModel:
         self._variance = None
         self._standard_deviation = None
 
-    def fit(self, samples: Union[list[Union[int, float]]]) -> None:
+    def fit(self, samples: Union[List[Union[int, float]]]) -> None:
         """ Fits the distribution model to a number of samples. Previously estimated values will be overwritten.
         :param samples: Samples to which the model is fitted. The samples can be given as list or as set.
         :return: None
