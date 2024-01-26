@@ -202,7 +202,7 @@ class DistributionModel:
         ret += " Variance:" + str(self.variance)
         return ret
 
-    def plot(self, show: bool = False, fig: Optional[plt.figure] = None, ax: Optional[plt.axes] = None):
+    def plot(self, show = False, fig = None, ax = None):
         """
         Creates a plot of the distribution model using matplotlib and
          returns a figure and axes with the corresponding plot.
