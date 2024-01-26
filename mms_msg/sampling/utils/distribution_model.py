@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 from typing import Optional, List, Union, Tuple
 from collections import Counter
 
@@ -219,6 +218,8 @@ class DistributionModel:
         :return: Figure and axes with the plot of the distribution.
                  When an axis but no figure is given as input then the tuple (None,ax) is returned.
         """
+        import matplotlib.pyplot as plt
+                
         if self.n == 0:
             raise AssertionError("No samples has been added to the model. Plot is empty.")
 
