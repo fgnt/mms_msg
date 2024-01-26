@@ -7,18 +7,18 @@ from collections import Counter
 class DistributionModel:
     """
     The class implements a histogram-like distribution model where the values a grouped into bins.
-    From these model its then possible to sample new values according to the distribution.
+    From this distribution model, it is then possible to sample new values according to the distribution.
     The size of these bins can be configured.
 
     Properties:
         bin_size: (read only) size of the histogram bins
         distribution_prob: (read only) all filled bins with their according probabilities
-        min_value: (read only) the lowest bound of a filled bin
-        max_value: (read only) the highest bound of a filled bin
-        expected_value: (read only) expected value when sampling
+        min_value: (read only) the lower bound of a filled bin
+        max_value: (read only) the upper bound of a filled bin
+        expected_value: (read only) expected value of the samples
         variance: (read only) variance of the samples
         standard_deviation: (read only) standard deviation
-        allow_negative_samples: Allow negative samples, useful for debugging when no negative samples are expected
+        allow_negative_samples: Allow negative samples, useful for debugging if no negative samples are expected
     """
     def __init__(self, samples: Optional[list[Union[int, float]]] = None, bin_size: Union[int, float] = 100,
                  allow_negative_samples: bool = False):
@@ -70,7 +70,7 @@ class DistributionModel:
         return self._standard_deviation
 
     def clear(self) -> None:
-        """Removes all samples from the model and resets the connected statistical values
+        """ Removes all samples from the model and resets the related statistical values
         :return: None
         """
         self._distribution_prob = None
@@ -81,7 +81,7 @@ class DistributionModel:
         self._standard_deviation = None
 
     def fit(self, samples: Union[list[Union[int, float]]]) -> None:
-        """ Fits the distribution model to a number of samples. Previous fits will be overwritten.
+        """ Fits the distribution model to a number of samples. Previously estimated values will be overwritten.
         :param samples: Samples to which the model is fitted. The samples can be given as list or as set.
         :return: None
         """
@@ -105,7 +105,7 @@ class DistributionModel:
 
             return int(sample / self.bin_size)*self.bin_size+offset
 
-        # Use the Counter class the count the absolute occurrences
+        # Use the Counter class to count the absolute occurrences
         counter_abs = Counter(list(map(bin_map, samples)))
 
         # Compute the probabilities for each bin, and then sort by the representative of the bin (required for sampling)
@@ -126,17 +126,17 @@ class DistributionModel:
                      sample_integer: bool = True, minimum_value: Optional[int] = None,
                      maximum_value: Optional[int] = None) -> Union[int, float]:
         """
-        Sample a value according to the current distribution of the class.
+        Sample a value according to the currently estimated distribution saved in the distribution model.
         It is also possible to restrict the area to an interval from which a sample is drawn.
-        In this case the distribution inside the interval is normalized to the probability 1 and then used for sampling.
+        In this case, the distribution inside the interval is normalized to the probability 1 and then used for sampling.
 
         :param rng: (optional) The numpy rng that should be used, the rng should generate a number in the interval [0,1)
-                    When not set a new uniform rng is used.
+                    If not set a new uniform rng is used.
         :param random_state: (optional) Seed for the default random number generator.
-                             When not set no seed is used for the rng, so the samples are no reproducible.
+                             If not set, no seed is used for the rng, so the samples are no reproducible.
         :param sample_integer: (optional) When set to true, the sampled value is an integer, otherwise it is a float.
                                Default: True.
-        :param minimum_value: (optional) minimal value that should be samples (including minimum_value)
+        :param minimum_value: (optional) minimal value that should be sampled (including minimum_value)
         :param maximum_value: (optional) maximum value that should be sampled (excluding maximum_value)
         :return: sample according to the distribution Integer, when sample_integer is True.
         """
@@ -244,7 +244,7 @@ def statistical_distance(d1: DistributionModel, d2: DistributionModel) -> float:
     """
     Calculates the statistical distance (total variation distance,
     https://en.wikipedia.org/wiki/Total_variation_distance_of_probability_measures)
-    of two distributions (d1 and d2).
+    of two distribution models (d1 and d2).
     :param d1: DistributionModel for comparison
     :param d2: DistributionModel for comparison
     :return: statistical distance
