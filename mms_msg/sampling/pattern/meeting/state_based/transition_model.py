@@ -10,28 +10,30 @@ class StateTransitionModel(ABC):
     """
 
     @abstractmethod
-    def next(self, rng: np.random.random = np.random.default_rng()):
+    def next(self, rng: np.random.random = np.random.default_rng()) -> Any:
         """
         Returns the next state according to the implemented model.
 
-        :param rng: rng that can be used in the determination of the next state
-        :return: Name of the next state
+        Args:
+            rng: rng that can be used in the determination of the next state
+
+        Returns: Next state
         """
         raise NotImplementedError
 
     @abstractmethod
-    def step_back(self):
+    def step_back(self) -> bool:
         """
-        Attempt to revert the last step of the model. Only one successful step back is guarantied.
-        :return: True when successful, False otherwise
+        Attempt to revert the last step of the model. Only one successful step back is guaranteed.
+
+        Returns: True when successful, False otherwise
         """
         raise NotImplementedError
 
     @abstractmethod
-    def reset(self):
+    def reset(self) -> None:
         """
         Resets the transition model to its starting state.
-        :return:
         """
         raise NotImplementedError
 
@@ -51,75 +53,78 @@ class MarkovModel(StateTransitionModel, Generic[MST]):
         last_state_index: Index of the previous state
     """
 
-    def __init__(self, size: int, probability_matrix: np.ndarray, s0: Optional[Union[int, str]] = 0,
-                 states: Optional[List[MST]] = None) -> None:
-        """ Initialize a Markov Model with n states. The states can be named with the states parameter.
-            Default naming is a simple enumeration.
+    def __init__(self, probability_matrix: np.ndarray, s0: Optional[Union[int, str]] = 0,
+                 state_names: Optional[List[MST]] = None) -> None:
+        """
+        Initialize a Markov Model with n states. The states can be named with the states parameter.
+        Default naming is a simple enumeration.
 
-        :param size: number of states in the markov model
-        :param probability_matrix: transition matrix for the markov model.
-               Must be a stochastic matrix of the dimensions n x n.
-        :param s0: index of the starting state or name of the starting state.
-                   When the s0 is an integer s0 it is interpreted as the index of the starting state.
-        :param states: (optional) names of the states, if used all states has to be named.
-                        As name every type except integer can be used,
-                        this type is reserved for the default enumeration.
+        Args:
+            probability_matrix: transition matrix for the markov model.
+                Must be a stochastic matrix of the dimensions n x n.
+            s0: index of the starting state or name of the starting state.
+                When s0 is an integer s0 it is interpreted as the index of the starting state.
+            state_names: (optional) names of the states, if used all states have to be named.
+                As name every type except integer can be used,
+                this type is reserved for the default enumeration.
         """
 
         # Assert correct dimensions and correct probabilities
-        if not size > 0:
-            raise AssertionError('The markov model requires at least one state')
-        if not probability_matrix.shape == (size, size):
-            raise AssertionError('Probability matrix has wrong dimensions, expecting: ('
-                                 + str(size) + ',' + str(size) + ')')
-        if not np.allclose(np.sum(probability_matrix, axis=1), np.ones(size), rtol=0.0, atol=1e-06):
-            raise AssertionError('The probabilities in some row, are not adding up to 1')
+        if not probability_matrix.shape[0] > 0:
+            raise ValueError('The markov model requires at least one state')
+        if probability_matrix.shape[0] != probability_matrix.shape[1]:
+            raise ValueError(f'Probability matrix has wrong dimensions: Expecting a square matrix, '
+                             f'but got {probability_matrix.shape}.')
+        if not np.allclose(np.sum(probability_matrix, axis=1), np.ones(probability_matrix.shape[0]),
+                           rtol=0.0, atol=1e-06):
+            raise ValueError('The probabilities in some row, are not adding up to 1')
 
         # Assert that when states are named, all states have names
-        if not (states is None or len(states) == size):
-            raise AssertionError('When the states parameter is used, there has to be names for all states.')
+        if not (state_names is None or len(state_names) == probability_matrix.shape[0]):
+            raise ValueError('When the states parameter is used, there has to be names for all states.')
 
         # Assert that no integers are used as names
-        if states is not None and type(states[0]) is int:
-            raise AssertionError('Integers are not allowed as names for states')
+        if state_names is not None and type(state_names[0]) is int:
+            raise TypeError('Integers are not allowed as names for states')
 
         self.s0 = s0
-        self._size = size
+        self._size = probability_matrix.shape[0]
         self.probability_matrix = probability_matrix
-        if states is None:
-            self._states = [*range(size)]
+        if state_names is None:
+            self._state_names = [*range(self.size)]
         else:
-            self._states = deepcopy(states)
+            self._state_names = deepcopy(state_names)
 
         if isinstance(s0, int):
             self.current_state_index = s0
         else:
-            self.current_state_index = self.states.index(s0)
+            self.current_state_index = self.state_names.index(s0)
 
         self.last_state_index = None
 
     def next(self, rng: np.random.random = np.random.default_rng()) -> Union[int, MST]:
-        """ Simulates a step in the markov model and return the state after the step
-
-        :param rng: The numpy rng that should be used, the rng should generate a number in the interval [0,1).
-                    If not set a uniform rng is used.
-        :return: Name of the state of the model after the step is executed
         """
+        Simulates a step in the markov model and return the state after the step
+
+        Args:
+            rng: The numpy rng that should be used, the rng should generate a number in the interval [0,1).
+                When not set a uniform rng is used.
+
+        Returns: Name of the state of the model after the step is executed
+        """
+
         self.last_state_index = self.current_state_index
-        row = self.probability_matrix[self.current_state_index:self.current_state_index + 1]
 
-        random = rng.random()
+        self.current_state_index = self.state_names.index(self.simulate_step(self.state_names[self.current_state_index],
+                                                                             rng))
 
-        row_sum = 0
-        for i in range(len(row[0])):
-            row_sum += row[0][i]
-            if row_sum >= random:
-                self.current_state_index = i
-                return self.states[self.current_state_index]
+        return self.state_names[self.current_state_index]
 
     def step_back(self) -> bool:
-        """ Attempt to revert the last step of the model. Only the last previous state is saved and can be restored.
-        :return: True when successful, False otherwise
+        """
+        Attempt to revert the last step of the model. Only the last previous state is saved and can be restored.
+
+        Returns: True when successful, False otherwise
         """
         if self.last_state_index is not None:
             self.current_state_index = self.last_state_index
@@ -135,57 +140,65 @@ class MarkovModel(StateTransitionModel, Generic[MST]):
         if isinstance(self.s0, int):
             self.current_state_index = self.s0
         else:
-            self.current_state_index = self.states.index(self.s0)
+            self.current_state_index = self.state_names.index(self.s0)
 
     def simulate_step(self, state: Union[int, MST], rng: np.random.random = np.random.default_rng()) -> Union[int, MST]:
         """
         Simulates a step from a single state, without changing to current state.
-        :param state: starting state for the single step
-        :param rng: The numpy rng that should be used, the rng should generate a number in the interval [0,1).
-                    If not set a uniform rng is used.
-        :return: state after a single step from the starting state
+
+        Args:
+            state: starting state for the single step
+            rng: The numpy rng that should be used, the rng should generate a number in the interval [0,1).
+                If not set a uniform rng is used.
+
+        Returns: State after a single step from the starting state
         """
-        index = self.states.index(state)
-        row = self.probability_matrix[index:index + 1]
+
+        index = self.state_names.index(state)
+        row = self.probability_matrix[index]
 
         random = rng.random()
 
         row_sum = 0
-        for i in range(len(row[0])):
-            row_sum += row[0][i]
+        for i, v in enumerate(row):
+            row_sum += v
             if row_sum >= random:
-                return self.states[i]
+                return self.state_names[i]
 
     @property
     def size(self) -> int:
         return self._size
 
     @property
-    def states(self) -> List[Union[int, MST]]:
-        return self._states
+    def state_names(self) -> List[Union[int, MST]]:
+        return self._state_names
 
     def __repr__(self):
         np.set_printoptions(suppress=True)
         ret = "Markov model: "
-        ret += " Number of states: " + str(self._size)
-        ret += " State names: " + str(self._states)
-        ret += "\nProbability matrix:\n" + str(self.probability_matrix)
+        ret += f"Number of states: {self._size} "
+        ret += f"State names: {self._state_names} "
+        ret += f"\nProbability matrix:\n {self.probability_matrix}"
         np.set_printoptions(suppress=False)
         return ret
 
 
 class SpeakerTransitionModel(ABC):
-    """Abstract class that can be used to implements a model that can sample a sequence of active speaker,
-       along with an action for each speaker. For example the action can be used  to determine the type of transition
-       between the speakers."""
+    """
+    Abstract class that can be used to implements a model that can sample a sequence of active speaker,
+    along with an action for each speaker. For example the action can be used  to determine the type of transition
+    between the speakers.
+    """
     @abstractmethod
     def start(self, env_state: Optional[Any] = None, **kwargs) -> Tuple[int, Any]:
         """
         Returns the speaker that should start speaking.
         This method should be called, when a new sequence is sampled.
 
-        :param env_state: (optional) Additional information about the state of the environment
-        :return starting state of the next sequence and environment state
+        Args:
+            env_state: env_state: (optional) Additional information about the state of the environment
+
+        Returns: Tuple consisting of the starting state of the next sequence and environment state
         """
         raise NotImplementedError
 
@@ -196,11 +209,13 @@ class SpeakerTransitionModel(ABC):
         Returns the next action and the next speaker according to the implemented transition model.
         When the model cannot find an action that can be executed a StopIteration error is raised.
 
-        :param rng: rng that can be used in the determination of the next state
-        :param last_action_success: (optional) status of the execution of the last action,
-                                     can be used when the actions can fail.
-        :param env_state: (optional) Additional information about the state of the environment
-        :return: Next action (state), the index of the next active speaker and the current environment state
+        Args:
+            rng: rng that can be used in the determination of the next state
+            last_action_success: (optional) status of the execution of the last action,
+                                  can be used when the actions can fail.
+            env_state: (optional) Additional information about the state of the environment
+
+        Returns: Next action (state), the index of the next active speaker and the current environment state
         """
         raise NotImplementedError
 
@@ -208,7 +223,6 @@ class SpeakerTransitionModel(ABC):
     def reset(self) -> None:
         """
         Resets the transition model to its initial state.
-        :return:
         """
         raise NotImplementedError
 
@@ -216,8 +230,9 @@ class SpeakerTransitionModel(ABC):
     @abstractmethod
     def tags(self) -> Set[str]:
         """
-        Returns the tag of the transition model, the tag consists of a  et of all actions that can be returned.
-        :return: Set of all possible actions.
+        Tag of the transition model, the tag consists of a set of all actions that can be returned.
+
+        Returns: Set of all possible actions.
         """
         pass
 
@@ -243,19 +258,23 @@ class TwoSpeakerTransitionModel(SpeakerTransitionModel):
         tags: Set of all actions that can be returned by the model.
     """
     def __init__(self, transition_model: StateTransitionModel, max_tries: int = 50) -> None:
-        """ Initialization with a StateTransitionModel and the number of maximal tries for a successful action.
-            When it is not possible to execute the action, the StateTransitionModel is reverted
-            and the selection of the next step is done again.
-            When more than max_tries are required a StopIteration Exception is returned
-        :param transition_model: Underlying transition model, that is internally used to determine the next action.
-        :param max_tries: Maximum number of tries
         """
+        Initialization with a StateTransitionModel and the number of maximal tries for a successful action.
+        When it is not possible to execute the action, the StateTransitionModel is reverted
+        and the selection of the next step is done again.
+        When more than max_tries are required a StopIteration Exception is returned
+
+        Args:
+            transition_model: Underlying transition model, that is internally used to determine the next action.
+            max_tries: Maximum number of tries
+        """
+
         self.transition_model = transition_model
         self.current_active_index = 0
         self.tries = 0
         self.max_tries = max_tries
 
-    def start(self, env_state: Optional[Any] = None, **kwargs):
+    def start(self, env_state: Optional[Any] = None, **kwargs) -> Tuple[int, Any]:
         self.reset()
         return self.current_active_index, env_state
 
@@ -291,6 +310,6 @@ class TwoSpeakerTransitionModel(SpeakerTransitionModel):
 
     def __repr__(self):
         ret = "TwoSpeakerTransitionModel: "
-        ret += " Current state: " + str(self.current_active_index)
-        ret += "\nTransitionModel: " + str(self.transition_model)
+        ret += f"Current state: {self.current_active_index}"
+        ret += f"\nTransitionModel:\n{self.transition_model}"
         return ret
