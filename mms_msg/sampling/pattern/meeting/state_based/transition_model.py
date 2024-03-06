@@ -6,7 +6,7 @@ from copy import deepcopy
 
 class StateTransitionModel(ABC):
     """
-    Abstract class that can be used to implement models, which determine a sequence of previous defined states.
+    Abstract class that can be used to implement models which determine a sequence of previously defined states.
     """
 
     @abstractmethod
@@ -48,7 +48,7 @@ class MarkovModel(StateTransitionModel, Generic[MST]):
     Properties:
         s0: Name or index of the starting state
         size: Number of states in the model
-        states: (read only) Names of the states
+        states: (read-only) Names of the states
         current_state_index: Index of the current state
         last_state_index: Index of the previous state
     """
@@ -56,12 +56,12 @@ class MarkovModel(StateTransitionModel, Generic[MST]):
     def __init__(self, probability_matrix: np.ndarray, s0: Optional[Union[int, MST]] = 0,
                  state_names: Optional[List[MST]] = None) -> None:
         """
-        Initialize a Markov Model with n states. The states can be named with the states parameter.
+        Initialize a Markov Model with n states. The states can be named with the state_names parameter.
         Default naming is a simple enumeration.
 
         Args:
             probability_matrix: transition matrix for the markov model.
-                Must be a stochastic matrix of the dimensions n x n.
+                It must be a stochastic matrix of the dimensions n x n.
             s0: index of the starting state or name of the starting state.
                 When s0 is an integer s0 it is interpreted as the index of the starting state.
             state_names: (optional) names of the states, if used all states have to be named.
@@ -104,10 +104,10 @@ class MarkovModel(StateTransitionModel, Generic[MST]):
 
     def next(self, rng: np.random.random = np.random.default_rng()) -> Union[int, MST]:
         """
-        Simulates a step in the markov model and return the state after the step
+        Simulates a step in the markov model and returns the state after the step
 
         Args:
-            rng: The numpy rng that should be used, the rng should generate a number in the interval [0,1).
+            rng: The numpy rng that should be used should generate a number in the interval [0,1).
                 When not set a uniform rng is used.
 
         Returns: Name of the state of the model after the step is executed
@@ -159,11 +159,11 @@ class MarkovModel(StateTransitionModel, Generic[MST]):
     def _simulate_step(self, index: int, rng: np.random.random = np.random.default_rng()) -> int:
         """
         Internal function that simulates one step from the given starting state, without changing the current state.
-        In the input and output of this function only the index of the states is used to identify them.
+        In the input and output of this function, only the index of the states is used to identify them.
 
         Args:
             index: Index of the starting state for the single step
-            rng: The numpy rng that should be used, the rng should generate a number in the interval [0,1).
+            rng: The numpy rng that should be used should generate a number in the interval [0,1).
                  If not set a uniform rng is used.
 
         Returns: Index of the State after a single step from the starting state
@@ -187,26 +187,25 @@ class MarkovModel(StateTransitionModel, Generic[MST]):
         return self._state_names
 
     def __repr__(self):
-        np.set_printoptions(suppress=True)
-        ret = "Markov model: "
-        ret += f"Number of states: {self._size} "
-        ret += f"State names: {self._state_names} "
-        ret += f"\nProbability matrix:\n {self.probability_matrix}"
-        np.set_printoptions(suppress=False)
-        return ret
+        return (
+            "Markov model: "
+            f"Number of states: {self._size} "
+            f"State names: {self._state_names}\n"
+            f"Probability matrix:\n {self.probability_matrix}"
+        )
 
 
 class SpeakerTransitionModel(ABC):
     """
-    Abstract class that can be used to implements a model that can sample a sequence of active speaker,
-    along with an action for each speaker. For example the action can be used  to determine the type of transition
+    Abstract class that can be used to implement a model that can sample a sequence of active speakers,
+    along with an action for each speaker. For example, the action can be used  to determine the type of transition
     between the speakers.
     """
     @abstractmethod
     def start(self, env_state: Optional[Any] = None, **kwargs) -> Tuple[int, Any]:
         """
         Returns the speaker that should start speaking.
-        This method should be called, when a new sequence is sampled.
+        This method should be called when a new sequence is sampled.
 
         Args:
             env_state: env_state: (optional) Additional information about the state of the environment
@@ -265,7 +264,7 @@ class TwoSpeakerTransitionModel(SpeakerTransitionModel):
     Properties:
         transition_model: StateTransitionModel used for the selection of the action
         current_active_index: Index of current active speaker
-        tries: Current number of tries for finding an action that can be successful executed
+        tries: Current number of tries for finding an action that can be successfully executed
         max_tries: Maximum number of tries to find a valid action,
                    after this is surpassed a StopIteration Exception is returned
         tags: Set of all actions that can be returned by the model.
@@ -322,7 +321,8 @@ class TwoSpeakerTransitionModel(SpeakerTransitionModel):
         return {"TS", "TH", "OV", "BC"}
 
     def __repr__(self):
-        ret = "TwoSpeakerTransitionModel: "
-        ret += f"Current state: {self.current_active_index}"
-        ret += f"\nTransitionModel:\n{self.transition_model}"
-        return ret
+        return (
+            f"TwoSpeakerTransitionModel: "
+            f"Current state: {self.current_active_index}\n"
+            f"TransitionModel:\n{self.transition_model}"
+        )
