@@ -53,7 +53,7 @@ class MarkovModel(StateTransitionModel, Generic[MST]):
         last_state_index: Index of the previous state
     """
 
-    def __init__(self, probability_matrix: np.ndarray, s0: Optional[Union[int, str]] = 0,
+    def __init__(self, probability_matrix: np.ndarray, s0: Optional[Union[int, MST]] = 0,
                  state_names: Optional[List[MST]] = None) -> None:
         """
         Initialize a Markov Model with n states. The states can be named with the states parameter.
@@ -115,8 +115,7 @@ class MarkovModel(StateTransitionModel, Generic[MST]):
 
         self.last_state_index = self.current_state_index
 
-        self.current_state_index = self.state_names.index(self.simulate_step(self.state_names[self.current_state_index],
-                                                                             rng))
+        self.current_state_index = self._simulate_step(self.current_state_index, rng)
 
         return self.state_names[self.current_state_index]
 
@@ -147,7 +146,7 @@ class MarkovModel(StateTransitionModel, Generic[MST]):
         Simulates a step from a single state, without changing to current state.
 
         Args:
-            state: starting state for the single step
+            state: Index or name of the starting state for the single step
             rng: The numpy rng that should be used, the rng should generate a number in the interval [0,1).
                 If not set a uniform rng is used.
 
@@ -155,15 +154,29 @@ class MarkovModel(StateTransitionModel, Generic[MST]):
         """
 
         index = self.state_names.index(state)
-        row = self.probability_matrix[index]
+        return self.state_names[self._simulate_step(index, rng)]
 
+    def _simulate_step(self, index: int, rng: np.random.random = np.random.default_rng()) -> int:
+        """
+        Internal function that simulates one step from the given starting state, without changing the current state.
+        In the input and output of this function only the index of the states is used to identify them.
+
+        Args:
+            index: Index of the starting state for the single step
+            rng: The numpy rng that should be used, the rng should generate a number in the interval [0,1).
+                 If not set a uniform rng is used.
+
+        Returns: Index of the State after a single step from the starting state
+        """
+
+        row = self.probability_matrix[index]
         random = rng.random()
 
         row_sum = 0
         for i, v in enumerate(row):
             row_sum += v
             if row_sum >= random:
-                return self.state_names[i]
+                return i
 
     @property
     def size(self) -> int:
