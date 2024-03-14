@@ -22,11 +22,13 @@ class DistributionModel:
     def __init__(self, samples: Optional[List[Union[int, float]]] = None, bin_size: Union[int, float] = 100,
                  allow_negative_samples: bool = False):
         """
-        :param bin_size: size of the histogram bins
-        :param samples: (optional) list of samples that should be added
-        :param allow_negative_samples: (optional) Allowing negative values to be added to the model.
-                                        Disabled by default.
+        Args:
+            samples: (optional) list of samples that should be added
+            bin_size: (optional) size of the histogram bins
+            allow_negative_samples:  (optional) Allowing negative values to be added to the model.
+                Disabled by default.
         """
+
         self.n = 0
         self._distribution_prob = None
         self._bin_size = bin_size
@@ -69,9 +71,10 @@ class DistributionModel:
         return self._standard_deviation
 
     def clear(self) -> None:
-        """ Removes all samples from the model and resets the related statistical values
-        :return: None
         """
+        Removes all samples from the model and resets the related statistical values
+        """
+
         self._distribution_prob = None
         self._min_value = None
         self._max_value = None
@@ -80,9 +83,11 @@ class DistributionModel:
         self._standard_deviation = None
 
     def fit(self, samples: Union[List[Union[int, float]]]) -> None:
-        """ Fits the distribution model to a number of samples. Previously estimated values will be overwritten.
-        :param samples: Samples to which the model is fitted. The samples can be given as list or as set.
-        :return: None
+        """
+        Fits the distribution model to a number of samples. Previously estimated values will be overwritten.
+
+        Args:
+            samples: Samples to which the model is fitted. The samples can be given as list or as set.
         """
 
         if len(samples) == 0:
@@ -129,15 +134,19 @@ class DistributionModel:
         It is also possible to restrict the area to an interval from which a sample is drawn.
         In this case, the distribution inside the interval is normalized to the probability 1 and then used for sampling.
 
-        :param rng: (optional) The numpy rng that should be used, the rng should generate a number in the interval [0,1)
-                    If not set a new uniform rng is used.
-        :param random_state: (optional) Seed for the default random number generator.
-                             If not set, no seed is used for the rng, so the samples are no reproducible.
-        :param sample_integer: (optional) When set to true, the sampled value is an integer, otherwise it is a float.
-                               Default: True.
-        :param minimum_value: (optional) minimal value that should be sampled (including minimum_value)
-        :param maximum_value: (optional) maximum value that should be sampled (excluding maximum_value)
-        :return: sample according to the distribution Integer, when sample_integer is True.
+        Args:
+            rng: (optional) The numpy rng that should be used, the rng should generate a number in the interval [0,1)
+                If not set a new uniform rng is used.
+            random_state: (optional) Seed for the default random number generator.
+                If not set, no seed is used for the rng, so the samples are no reproducible.
+            sample_integer: (optional) When set to true, the sampled value is an integer, otherwise it is a float.
+                Default: True.
+            minimum_value: (optional) minimal value that should be sampled (including minimum_value)
+            maximum_value: (optional) maximum value that should be sampled (excluding maximum_value)
+
+        Returns: Sample according to the distribution Integer. Returns an integer when sample_integer is set to True,
+                otherwise returns a float.
+
         """
 
         if rng is None:
@@ -145,6 +154,9 @@ class DistributionModel:
 
         if self.n == 0:
             raise AssertionError("No samples has been added to the model. Sampling not possible.")
+
+        if minimum_value is not None and maximum_value is not None and minimum_value >= maximum_value:
+            raise ValueError('When given the maximum value must be greater than the minimum value.')
 
         if minimum_value is None:
             p_min = 0
@@ -155,6 +167,10 @@ class DistributionModel:
             p_s = 1-p_min
         else:
             p_s = self.get_cdf_value(maximum_value)-p_min
+
+        if p_s <= 0:
+            raise ValueError('The probability that an element is in the given boundaries is 0 according to the'
+                             ' underlying model.')
 
         temp = p_min + rng.random()*p_s
 
@@ -175,8 +191,10 @@ class DistributionModel:
         Returns the value of the cumulative distribution function (cdf) for the given value.
         In other words returns the probability that a random sample is smaller than value.
 
-        :param value: Value for which the cdf should be evaluated
-        :return: Output of the cdf function at the given value.
+        Args:
+            value: Value for which the cdf should be evaluated
+
+        Returns: Output of the cdf function at the given value.
         """
 
         if value < self.min_value:
@@ -202,21 +220,25 @@ class DistributionModel:
         ret += " Variance:" + str(self.variance)
         return ret
 
-    def plot(self, show = False, fig = None, ax = None):
+    def plot(self, show: bool = False, fig=None, ax=None):
         """
         Creates a plot of the distribution model using matplotlib and
-         returns a figure and axes with the corresponding plot.
-        @:param show: (optional) When set to True the figure is directly shown
-        @:param fig: (optional) Figure on which a new axes with the plot is created.
-                     Will be overwritten when ax is given.
-                     When not given and also ax is not provided the function creates a new figure
-                     with one axes and uses this for the plot.
-        @:param ax: (optional) axes on which the plot is created, when not provided
-                    the function creates a new axes on the figure, when also the figure is not provided
-                    then the function creates a new figure with one axes and uses this for the plot.
-        :return: Figure and axes with the plot of the distribution.
-                 When an axis but no figure is given as input then the tuple (None,ax) is returned.
+        returns a figure and axes with the corresponding plot.
+
+        Args:
+            show: (optional) When set to True the figure is directly shown
+            fig: (optional) Figure on which a new axes with the plot is created.
+                Will be overwritten when ax is given.
+                When not given and also ax is not provided the function creates a new figure
+                with one axes and uses this for the plot.
+            ax: (optional) axes on which the plot is created, when not provided
+                the function creates a new axes on the figure, when also the figure is not provided
+                then the function creates a new figure with one axes and uses this for the plot.
+
+        Returns: Figure and axes with the plot of the distribution.
+                When an axis but no figure is given as input then the tuple (None,ax) is returned.
         """
+
         import matplotlib.pyplot as plt
                 
         if self.n == 0:
@@ -245,10 +267,14 @@ def statistical_distance(d1: DistributionModel, d2: DistributionModel) -> float:
     Calculates the statistical distance (total variation distance,
     https://en.wikipedia.org/wiki/Total_variation_distance_of_probability_measures)
     of two distribution models (d1 and d2).
-    :param d1: DistributionModel for comparison
-    :param d2: DistributionModel for comparison
-    :return: statistical distance
+
+    Args:
+        d1: DistributionModel for comparison
+        d2: DistributionModel for comparison
+
+    Returns: statistical distance
     """
+
     if d1.n == 0:
         raise AssertionError("No samples has been added to the first model. No comparison possible.")
     elif d2.n == 0:
