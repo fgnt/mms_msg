@@ -168,7 +168,8 @@ class DistributionModel:
         else:
             p_s = self.get_cdf_value(maximum_value)-p_min
 
-        if p_s <= 0:
+        # Check if it is possible to sample a value, 1e-06 is used instead of 0, due to floating point precision
+        if p_s <= 1e-06:
             raise ValueError('The probability that an element is in the given boundaries is 0 according to the'
                              ' underlying model.')
 

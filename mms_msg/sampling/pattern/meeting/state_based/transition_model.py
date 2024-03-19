@@ -264,6 +264,7 @@ class TwoSpeakerTransitionModel(SpeakerTransitionModel):
     Properties:
         transition_model: StateTransitionModel used for the selection of the action
         current_active_index: Index of current active speaker
+        last_active_index: Index of last active speaker
         tries: Current number of tries for finding an action that can be successfully executed
         max_tries: Maximum number of tries to find a valid action,
                    after this is surpassed a StopIteration Exception is returned
@@ -283,6 +284,7 @@ class TwoSpeakerTransitionModel(SpeakerTransitionModel):
 
         self.transition_model = transition_model
         self.current_active_index = 0
+        self.last_active_index = 0
         self.tries = 0
         self.max_tries = max_tries
 
@@ -296,11 +298,14 @@ class TwoSpeakerTransitionModel(SpeakerTransitionModel):
             self.tries = 0
         elif self.tries < self.max_tries:
             self.transition_model.step_back()
+            self.current_active_index = self.last_active_index
             self.tries += 1
         else:
             raise StopIteration('Number of max tries exceeded')
 
         action = self.transition_model.next(rng)
+
+        self.last_active_index = self.current_active_index
 
         # In the case of a backchannel, the next speaker changes, but the active speaker in the foreground does not.
         if action == "BC":
@@ -315,6 +320,7 @@ class TwoSpeakerTransitionModel(SpeakerTransitionModel):
     def reset(self) -> None:
         self.transition_model.reset()
         self.current_active_index = 0
+        self.last_active_index = 0
 
     @property
     def tags(self) -> Set[str]:
