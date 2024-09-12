@@ -1,7 +1,12 @@
+from __future__ import annotations
+import json
 import numpy as np
-from typing import Optional, List, Union, Generic, TypeVar, Tuple, Any, Set
+from typing import Optional, List, Union, Generic, TypeVar, Tuple, Any, Set, Dict
 from abc import ABC, abstractmethod
 from copy import deepcopy
+import sys
+
+from mms_msg.sampling.pattern.meeting.scenario_sequence_sampler import sample_balanced
 
 
 class StateTransitionModel(ABC):
@@ -34,6 +39,55 @@ class StateTransitionModel(ABC):
     def reset(self) -> None:
         """
         Resets the transition model to its starting state.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    @abstractmethod
+    def to_json(obj: StateTransitionModel) -> str:
+        """ Static method that serializes a StateTransitionModel into a json string.
+
+        Args:
+            obj: StateTransitionModel which should be serialized
+
+        Returns: Json string which contains the data of the given object
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    @abstractmethod
+    def from_json(json_string: str) -> StateTransitionModel:
+        """ Static method that creates a StateTransitionModel from a given json string.
+
+        Args:
+            json_string: Json string that contains the data required for the StateTransitionModel
+
+        Returns: StateTransitionModel constructed from the data of the json string.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    @abstractmethod
+    def save(obj: StateTransitionModel, filepath: Optional[str] = 'state_transition_model.json') -> None:
+        """ Static method that saves the given StateTransitionModel to a file belonging to the given filepath.
+            When the file exists its contests will be overwritten. When it not exists it is created.
+            The used dataformat is json, so a .json file extension is recommended.
+
+            Args:
+                obj: StateTransitionModel which should be saved
+                filepath: Path to the file where the model should be saved.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    @abstractmethod
+    def load(filepath: Optional[str] = 'distribution_model.json') -> StateTransitionModel:
+        """Static method that loads a StateTransitionModel from file belonging to the given filepath.
+
+        Args:
+            filepath: Path to the file where the model is saved.
+
+        Returns: StateTransitionModel constructed from the data of the given file.
         """
         raise NotImplementedError
 
@@ -194,6 +248,45 @@ class MarkovModel(StateTransitionModel, Generic[MST]):
             f"Probability matrix:\n {self.probability_matrix}"
         )
 
+    @staticmethod
+    def to_json(obj: MarkovModel) -> str:
+        def json_default(o):
+            if isinstance(o, np.ndarray):
+                return o.tolist()
+            else:
+                return o.__dict__
+        return json.dumps(obj, default=json_default)
+
+    @staticmethod
+    def from_json(json_string: str) -> MarkovModel:
+        obj = MarkovModel(np.ones((1, 1)))
+        data = json.loads(json_string)
+        for k, v in data.items():
+            if k == 'probability_matrix':
+                obj.__dict__[k] = np.asarray(v)
+            else:
+                obj.__dict__[k] = v
+        return obj
+
+    @staticmethod
+    def save(obj: MarkovModel, filepath: Optional[str] = 'state_transition_model.json') -> None:
+        with open(filepath, 'w+') as file:
+            try:
+                json_string = MarkovModel.to_json(obj)
+                file.write(json_string)
+            finally:
+                file.close()
+
+    @staticmethod
+    def load(filepath: Optional[str] = 'state_transition_model.json') -> MarkovModel:
+        with open(filepath, 'r') as file:
+            try:
+                json_string = file.read()
+                obj = MarkovModel.from_json(json_string)
+            finally:
+                file.close()
+            return obj
+
 
 class SpeakerTransitionModel(ABC):
     """
@@ -232,6 +325,17 @@ class SpeakerTransitionModel(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def change_num_speakers(self, num_speakers: int = 2) -> None:
+        """
+        Tries to change the number of speakers in the transition model.
+        When the change is not possible due to the structure of the transition model,
+        this function should throw an SystemError.
+
+        Args:
+            num_speakers: New number of speakers that the transition model should use for its output.
+        """
+
+    @abstractmethod
     def reset(self) -> None:
         """
         Resets the transition model to its initial state.
@@ -248,15 +352,66 @@ class SpeakerTransitionModel(ABC):
         """
         pass
 
+    @staticmethod
+    @abstractmethod
+    def to_json(obj: SpeakerTransitionModel) -> str:
+        """ Static method that serializes a SpeakerTransitionModel into a json string.
 
-class TwoSpeakerTransitionModel(SpeakerTransitionModel):
-    """SpeakerTransitionModel which implements the transition between two speakers.
-     For the transition of the states a transitionModel is used.
-     Supports four possible actions:
+        Args:
+            obj: SpeakerTransitionModel which should be serialized
+
+        Returns: Json string which contains the data of the given object
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    @abstractmethod
+    def from_json(json_string: str) -> SpeakerTransitionModel:
+        """ Static method that creates a SpeakerTransitionModel from a given json string.
+
+        Args:
+            json_string: Json string that contains the data required for the SpeakerTransitionModel
+
+        Returns: SpeakerTransitionModel constructed from the data of the json string.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    @abstractmethod
+    def save(obj: SpeakerTransitionModel, filepath: Optional[str] = 'speaker_transition_model.json') -> None:
+        """ Static method that saves the given SpeakerTransitionModel to a file belonging to the given filepath.
+            When the file exists its contests will be overwritten. When it not exists it is created.
+            The used dataformat is json, so a .json file extension is recommended.
+
+            Args:
+                obj: SpeakerTransitionModel which should be saved
+                filepath: Path to the file where the model should be saved.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    @abstractmethod
+    def load(filepath: Optional[str] = 'speaker_transition_model.json') -> SpeakerTransitionModel:
+        """Static method that loads a SpeakerTransitionModel from file belonging to the given filepath.
+
+        Args:
+            filepath: Path to the file where the model is saved.
+
+        Returns: SpeakerTransitionModel constructed from the data of the given file.
+        """
+        raise NotImplementedError
+
+
+class MultiSpeakerTransitionModel(SpeakerTransitionModel):
+    """SpeakerTransitionModel which implements the transition between multiple speakers.
+    For the transition of the states a transitionModel is used.
+    Supports four possible actions:
         - TH: Turn-hold     (no speaker change with silence)
         - TS: Turn-switch   (speaker change with silence)
         - OV: Overlap       (speaker change with overlap)
         - BC: Backchannel   (speaker in backchannel, totally overlapped from foreground speaker)
+
+    Currently, there are two implemented modes, that determine the selection of the next speaker (random, balanced)
 
     Corresponding paper: Improving the Naturalness of Simulated Conversations for End-to-End Neural Diarization,
                          https://arxiv.org/abs/2204.11232
@@ -269,8 +424,15 @@ class TwoSpeakerTransitionModel(SpeakerTransitionModel):
         max_tries: Maximum number of tries to find a valid action,
                    after this is surpassed a StopIteration Exception is returned
         tags: Set of all actions that can be returned by the model.
+        num_speakers: Number of speakers in the transition model.
+        mode: Currently, there are two implemented modes, that determine the selection of the next speaker:
+            - random:   The next speaker is chosen at random.
+            - balanced: The next speaker is the speaker which has the least amount of speech time in the
+                        currently generated section of the meeting.
+
     """
-    def __init__(self, transition_model: StateTransitionModel, max_tries: int = 50) -> None:
+    def __init__(self, transition_model: StateTransitionModel, max_tries: int = 50, num_speakers: int = 2,
+                 mode: str = 'balanced') -> None:
         """
         Initialization with a StateTransitionModel and the number of maximal tries for a successful action.
         When it is not possible to execute the action, the StateTransitionModel is reverted
@@ -280,6 +442,7 @@ class TwoSpeakerTransitionModel(SpeakerTransitionModel):
         Args:
             transition_model: Underlying transition model, that is internally used to determine the next action.
             max_tries: Maximum number of tries
+            num_speakers: Number of speakers in the transition model
         """
 
         self.transition_model = transition_model
@@ -287,13 +450,32 @@ class TwoSpeakerTransitionModel(SpeakerTransitionModel):
         self.last_active_index = 0
         self.tries = 0
         self.max_tries = max_tries
+        self.num_speakers = num_speakers
+        self.mode = mode
 
     def start(self, env_state: Optional[Any] = None, **kwargs) -> Tuple[int, Any]:
         self.reset()
         return self.current_active_index, env_state
 
     def next(self, rng: np.random.random = np.random.default_rng(), last_action_success: bool = True,
-             env_state: Optional[Any] = None, **kwargs) -> Tuple[str, int, Any]:
+             env_state: Optional[Any] = None, examples: List[Dict] = None, **kwargs) -> Tuple[str, int, Any]:
+        """
+        Returns the next action and the next speaker according to the implemented transition model.
+        When the model cannot find an action that can be executed a StopIteration error is raised.
+
+        Args:
+            rng: rng that can be used in the determination of the next state
+            last_action_success: (optional) status of the execution of the last action,
+                                  can be used when the actions can fail.
+            env_state: (optional) Additional information about the state of the environment
+            examples: (optional) List of the previously chosen samples of the current meeting
+
+        Returns: Next action (state), the index of the next active speaker and the current environment state
+        """
+
+        if examples is None:
+            examples = []
+
         if last_action_success:
             self.tries = 0
         elif self.tries < self.max_tries:
@@ -309,13 +491,53 @@ class TwoSpeakerTransitionModel(SpeakerTransitionModel):
 
         # In the case of a backchannel, the next speaker changes, but the active speaker in the foreground does not.
         if action == "BC":
-            return action, (self.current_active_index + 1) % 2, None
+            return action, self._next_speaker(rng=rng, examples=examples, env_state=env_state, **kwargs), None
 
         # Speaker changes in the case of a turn-switch or overlap
         if action in ("TS", "OV"):
-            self.current_active_index = (self.current_active_index + 1) % 2
+            self.current_active_index = self._next_speaker(rng=rng, examples=examples, env_state=env_state, **kwargs)
 
         return action, self.current_active_index, env_state
+
+    def change_num_speakers(self, num_speakers: int = 2):
+        self.num_speakers = num_speakers
+
+    def _next_speaker(self, rng: np.random.random, examples: List[Dict], **kwargs) -> int:
+        """
+        Internal function that determines the next speaker, depending on the current mode.
+
+        Args:
+            rng:  rng that can be used in the determination of the next speaker.
+            examples: List of the previously chosen samples of the current meeting.
+            **kwargs: Additional keyword arguments given to the function.
+
+        Returns: Index of the next speaker.
+        """
+        if self.mode == 'balanced':
+            speakers = set()
+
+            for source in examples:
+                speakers.add(source['speaker_id'])
+
+            speakers = list(speakers)
+            if len(speakers) < self.num_speakers:
+                speakers.extend([str(i) for i in range(len(speakers), self.num_speakers)])
+
+            next_index = speakers.index(str(sample_balanced(scenarios=speakers, examples=examples, rng=rng)))
+
+            # When the active speaker is selected, a random speaker is chosen,
+            # because the selected action requires a speaker change,
+            if next_index != self.current_active_index:
+                return next_index
+            else:
+                possible_speakers = list({i for i in range(self.num_speakers)}.difference({self.current_active_index}))
+                return int(rng.choice(possible_speakers, size=1))
+
+        elif self.mode == 'random':
+            possible_speakers = list({i for i in range(self.num_speakers)}.difference({self.current_active_index}))
+            return int(rng.choice(possible_speakers, size=1))
+        else:
+            raise AssertionError(f'Selected mode ({self.mode}) is not supported. Supported modes: random, balanced')
 
     def reset(self) -> None:
         self.transition_model.reset()
@@ -332,3 +554,45 @@ class TwoSpeakerTransitionModel(SpeakerTransitionModel):
             f"Current state: {self.current_active_index}\n"
             f"TransitionModel:\n{self.transition_model}"
         )
+
+    @staticmethod
+    def to_json(obj: MultiSpeakerTransitionModel) -> str:
+        def json_default(o):
+            if isinstance(o, StateTransitionModel):
+                return type(o).__name__, o.__class__.to_json(o)
+            else:
+                return o.__dict__
+
+        return json.dumps(obj, default=json_default)
+
+    @staticmethod
+    def from_json(json_string: str) -> MultiSpeakerTransitionModel:
+        obj = MultiSpeakerTransitionModel(MarkovModel(np.ones((1, 1))))
+        data = json.loads(json_string)
+        for k, v in data.items():
+            if k == 'transition_model':
+                # Restriction of possible classes to the ones in this file to prevent
+                # possible injection of malicious code through the json string
+                obj.__dict__[k] = getattr(sys.modules[__name__], v[0]).from_json(v[1])
+            else:
+                obj.__dict__[k] = v
+        return obj
+
+    @staticmethod
+    def save(obj: MultiSpeakerTransitionModel, filepath: Optional[str] = 'speaker_transition_model.json') -> None:
+        with open(filepath, 'w+') as file:
+            try:
+                json_string = MultiSpeakerTransitionModel.to_json(obj)
+                file.write(json_string)
+            finally:
+                file.close()
+
+    @staticmethod
+    def load(filepath: Optional[str] = 'speaker_transition_model.json') -> MultiSpeakerTransitionModel:
+        with open(filepath, 'r') as file:
+            try:
+                json_string = file.read()
+                obj = MultiSpeakerTransitionModel.from_json(json_string)
+            finally:
+                file.close()
+            return obj
