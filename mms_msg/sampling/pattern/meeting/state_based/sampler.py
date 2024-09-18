@@ -12,7 +12,7 @@ from mms_msg.sampling.pattern.meeting.overlap_sampler import _get_valid_overlap_
 
 class SilenceSampler(ABC):
     """
-    Abstract class to allow sampling of an integer according to a certain distribution.
+    Abstract class to allow sampling of an integer value according to a certain distribution.
     Optionally the sampling can be restricted by a minimum and a maximum bound. This bound is guaranteed,
     when the sampler is called with (). Alternatively a value can be directly sampled with sample_silence,
     but then the bounds are not enforced. When the sampling fails a ValueError should be raised.

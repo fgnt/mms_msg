@@ -328,6 +328,7 @@ class SpeakerTransitionModel(ABC):
     def change_num_speakers(self, num_speakers: int = 2) -> None:
         """
         Tries to change the number of speakers in the transition model.
+        This can be used to create meetings with a different number of speakers than in the source dataset.
         When the change is not possible due to the structure of the transition model,
         this function should throw an SystemError.
 
@@ -447,7 +448,7 @@ class MultiSpeakerTransitionModel(SpeakerTransitionModel):
 
         self.transition_model = transition_model
         self.current_active_index = 0
-        self.last_active_index = 0
+        self.last_active_index = 0  # Required to revert internal state after sampling of a fitting source fails.
         self.tries = 0
         self.max_tries = max_tries
         self.num_speakers = num_speakers
@@ -550,8 +551,9 @@ class MultiSpeakerTransitionModel(SpeakerTransitionModel):
 
     def __repr__(self):
         return (
-            f"TwoSpeakerTransitionModel: "
-            f"Current state: {self.current_active_index}\n"
+            f"MultiSpeakerTransitionModel: "
+            f"Current state: {self.current_active_index}"
+            f"Number of speakers:{self.num_speakers}\n"
             f"TransitionModel:\n{self.transition_model}"
         )
 

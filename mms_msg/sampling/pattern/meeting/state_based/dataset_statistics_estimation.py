@@ -24,8 +24,10 @@ class MeetingStatisticsEstimatorMarkov:
         Improving the Naturalness of Simulated Conversations for End-to-End Neural Diarization,
         https://arxiv.org/abs/2204.11232
 
-    Also, distributions for silence and overlap are computed, using a histogram like distribution model.
+    Also, distributions for silence and overlap are computed, using a histogram-like distribution model.
     This class also supports processing of datasets which utilize Voice activity detection (VAD) data.
+    When VAD data should be processed, the dataset must have the key 'aligned_source' for each speaker,
+    which describes the interval in which the speaker is active.
 
     Each sample in the processed dataset must have the following keys:
         - speaker_id: List with the speaker_ids, which belong to the sources in the example
@@ -38,7 +40,7 @@ class MeetingStatisticsEstimatorMarkov:
 
     Properties:
         dataset: (read only) last processed dataset
-        model: (read only) markov model of the transitions the meetings of the dataset
+        model: (read only) Markov model with state transition probabilities for the current dataset
         silence_distribution: (read only) distribution model of the length of the silence
         overlap_distribution: (read only) distribution model of the length of the overlap
     """
@@ -83,13 +85,15 @@ class MeetingStatisticsEstimatorMarkov:
         # Remove FilterExceptions
         self._dataset = dataset.catch()
 
-        states_absolute_values = np.array([0] * 4)
-        matrix_absolute_values = np.zeros((4, 4))
+        state_occurence_counter = np.array([0] * 4)
+        state_transition_counter = np.zeros((4, 4))
 
         silence_durations = []
         overlap_durations = []
 
         n = 0
+
+        num_speakers = 0
 
         for sample in self._dataset:
             if n % 100 == 0:
@@ -105,12 +109,14 @@ class MeetingStatisticsEstimatorMarkov:
                 speaker_ends = list(map(add, offsets, sample['num_samples']['original_source']))
             speaker_ids = sample['speaker_id']
 
+            num_speakers = max(num_speakers, len(set(speaker_ids)))
+
             current_state = 0
             last_foreground_end = speaker_ends[0]
             last_foreground_speaker = speaker_ids[0]
 
             for i in range(len(offsets) - 1):
-                states_absolute_values[current_state] += 1
+                state_occurence_counter[current_state] += 1
                 # Turn-hold
                 if last_foreground_speaker == speaker_ids[i + 1]:
                     if offsets[i + 1] - last_foreground_end < 0:
@@ -136,7 +142,7 @@ class MeetingStatisticsEstimatorMarkov:
                     last_foreground_end = speaker_ends[i + 1]
                     last_foreground_speaker = speaker_ids[i + 1]
 
-                matrix_absolute_values[current_state][new_state] += 1
+                state_transition_counter[current_state][new_state] += 1
 
                 current_state = new_state
 
@@ -153,15 +159,16 @@ class MeetingStatisticsEstimatorMarkov:
 
         # Fixes matrix when some states are never reached, otherwise the resulting matrix is not a stochastic matrix,
         # but this required for the markov model. (Fixed problem: division by 0, leads to infinite values)
-        for i in range(len(states_absolute_values)):
-            if states_absolute_values[i] == 0:
-                matrix_absolute_values[i] = np.zeros((1, len(matrix_absolute_values[i])))
-                matrix_absolute_values[i][i] = 1
-                states_absolute_values[i] = 1
+        for i in range(len(state_occurence_counter)):
+            if state_occurence_counter[i] == 0:
+                state_transition_counter[i] = np.zeros((1, len(state_transition_counter[i])))
+                state_transition_counter[i][i] = 1
+                state_occurence_counter[i] = 1
 
         # Fit MarkovModel and create fitting SpeakerTransitionModel
-        self._model = MultiSpeakerTransitionModel(MarkovModel(matrix_absolute_values / states_absolute_values[:, None],
-                                                            state_names=["TH", "TS", "OV", "BC"]))
+        self._model = MultiSpeakerTransitionModel(MarkovModel(state_transition_counter/state_occurence_counter[:, None],
+                                                              state_names=["TH", "TS", "OV", "BC"]),
+                                                  num_speakers=num_speakers)
 
         logger.info("Finished processing the dataset")
 

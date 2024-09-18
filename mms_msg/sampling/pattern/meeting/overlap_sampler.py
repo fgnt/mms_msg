@@ -13,7 +13,8 @@ def _get_valid_overlap_region(examples, max_concurrent_spk, current_source, use_
     Args:
         examples:
         max_concurrent_spk:
-
+        use_vad: (optional) When set to True the keys that represent the alignment of the vad data are
+            used to compute the valid overlap region.
     Returns:
 
     """

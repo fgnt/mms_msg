@@ -15,7 +15,7 @@ logger = logging.getLogger('meeting_generation')
 
 class ActionHandler(ABC):
     """
-    Class for processing events during the generation of a new meeting example.
+    Class for the state processing during the state-based generation of a meeting example.
 
     Each ActionHandler has tags, which consist of a list of the events that could be processed by it.
     """
@@ -36,7 +36,8 @@ class ActionHandler(ABC):
                        to the ActionHandler
 
         Returns: Tuple with four entries:
-                    - Boolean that indicates the success of the start
+                    - Boolean that indicates the success of the start method
+                        (Sampling of fitting source for the given example_id was successful)
                     - Sampled source
                     - offset
                     - potentially changed environment state
@@ -47,7 +48,7 @@ class ActionHandler(ABC):
     def next_scenario(self, action: Any, scenario_id_index: int, examples: List[Dict], base_examples: List[Dict],
                       env_state: Optional[Any] = None, **kwargs) -> Tuple[bool, Optional[Dict], int, Any]:
         """
-        Samples a fitting source and offset for the given action and speaker.
+        Samples a matching source and offset for the given action and speaker.
 
         Args:
             action: Action that determines the transition between the last speaker and the current speaker

@@ -3,16 +3,15 @@ from mms_msg.sampling.pattern.meeting.state_based.weighted_meeting_sampler impor
 from mms_msg.sampling.pattern.meeting.state_based.action_handler import DistributionActionHandler
 from mms_msg.sampling.pattern.meeting.state_based.sampler import DistributionSilenceSampler, DistributionOverlapSampler
 from lazy_dataset import Dataset
-from typing import Dict, Type
+from typing import Dict, Type, Optional
 import mms_msg
 
 
 class MeetingGenerator:
     """
-    Class that can be used to generate artificial meetings that have a silence, overlap and speaker transition
-    distribution that is statistical close to a given source dataset.
+    Class for generating meetings that aim to replicate the state transition probabilities of another dataset.
     The samples that are used to generate the artificial data is from an input dataset
-    that can be independent of the source dataset.
+    that can be independent of the dataset the state transitions are estimates from.
 
     This class used a Markov based model for the different transitions of the speakers and tries to balance
     the activity of all speakers in each meeting.
@@ -58,7 +57,7 @@ class MeetingGenerator:
         self.overlap = DistributionOverlapSampler(max_concurrent_spk=2, distribution=db_sampler.overlap_distribution)
 
     def generate(self, input_dataset: [Dict, Dataset], num_speakers: int = 2, duration: int = 960000,
-                 use_vad: [bool] = False) -> Dataset:
+                 num_meetings: Optional[int] = None, use_vad: [bool] = False) -> Dataset:
         """Generate a dataset of artificial meeting, with sources from the input_dataset.
          The distribution of the generated dataset follows the last fitted distribution,
          so the fit method must be called at least once before calling this method.
@@ -68,10 +67,13 @@ class MeetingGenerator:
             input_dataset: Dataset from which the sources are drawn, that are used for generation new meetings
             num_speakers: Number of speakers the meetings in the generated datasets should have.
             duration: Duration that the newly generated examples should roughly have, can be slightly exceeded.
+            num_meetings: Number of meeting that should be generated.
+                When not given the number of entries in the input dataset is used.
             use_vad: Should VAD data be used. When set to true VAD data is used,
                 during generation of the new dataset and the output dataset hat also VAD information.
 
-        Returns Output dataset, with as many entries as the input dataset has samples.
+        Returns: Output dataset, with as many entries as the input dataset has samples
+                or a lower amount when specified with num_meetings.
         """
 
         if self.model is None or self.silence is None or self.overlap is None:
@@ -85,6 +87,10 @@ class MeetingGenerator:
                       'It is possible that the generation fails for the desired number of speakers.')
 
         ds = mms_msg.sampling.source_composition.get_composition_dataset(input_dataset, num_speakers=num_speakers)
+
+        if num_meetings is not None:
+            ds = ds[:num_meetings]
+
         ds = ds.map(mms_msg.sampling.environment.scaling.UniformScalingSampler())
         ds = ds.map(mms_msg.sampling.environment.noise.UniformSNRSampler(20.0, 30.0))
 
