@@ -102,7 +102,7 @@ class MarkovModel(StateTransitionModel, Generic[MST]):
     Properties:
         s0: Name or index of the starting state
         size: Number of states in the model
-        states: (read-only) Names of the states
+        state_names: (read-only) Names of the states
         current_state_index: Index of the current state
         last_state_index: Index of the previous state
     """
@@ -271,20 +271,14 @@ class MarkovModel(StateTransitionModel, Generic[MST]):
     @staticmethod
     def save(obj: MarkovModel, filepath: Optional[str] = 'state_transition_model.json') -> None:
         with open(filepath, 'w+') as file:
-            try:
-                json_string = MarkovModel.to_json(obj)
-                file.write(json_string)
-            finally:
-                file.close()
+            json_string = MarkovModel.to_json(obj)
+            file.write(json_string)
 
     @staticmethod
     def load(filepath: Optional[str] = 'state_transition_model.json') -> MarkovModel:
         with open(filepath, 'r') as file:
-            try:
-                json_string = file.read()
-                obj = MarkovModel.from_json(json_string)
-            finally:
-                file.close()
+            json_string = file.read()
+            obj = MarkovModel.from_json(json_string)
             return obj
 
 
@@ -330,7 +324,7 @@ class SpeakerTransitionModel(ABC):
         Tries to change the number of speakers in the transition model.
         This can be used to create meetings with a different number of speakers than in the source dataset.
         When the change is not possible due to the structure of the transition model,
-        this function should throw an SystemError.
+        this function should throw an TypeError.
 
         Args:
             num_speakers: New number of speakers that the transition model should use for its output.
@@ -552,7 +546,7 @@ class MultiSpeakerTransitionModel(SpeakerTransitionModel):
     def __repr__(self):
         return (
             f"MultiSpeakerTransitionModel: "
-            f"Current state: {self.current_active_index}"
+            f"Current state: {self.current_active_index} "
             f"Number of speakers:{self.num_speakers}\n"
             f"TransitionModel:\n{self.transition_model}"
         )
@@ -583,18 +577,12 @@ class MultiSpeakerTransitionModel(SpeakerTransitionModel):
     @staticmethod
     def save(obj: MultiSpeakerTransitionModel, filepath: Optional[str] = 'speaker_transition_model.json') -> None:
         with open(filepath, 'w+') as file:
-            try:
-                json_string = MultiSpeakerTransitionModel.to_json(obj)
-                file.write(json_string)
-            finally:
-                file.close()
+            json_string = MultiSpeakerTransitionModel.to_json(obj)
+            file.write(json_string)
 
     @staticmethod
     def load(filepath: Optional[str] = 'speaker_transition_model.json') -> MultiSpeakerTransitionModel:
         with open(filepath, 'r') as file:
-            try:
-                json_string = file.read()
-                obj = MultiSpeakerTransitionModel.from_json(json_string)
-            finally:
-                file.close()
+            json_string = file.read()
+            obj = MultiSpeakerTransitionModel.from_json(json_string)
             return obj

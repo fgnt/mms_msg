@@ -11,9 +11,6 @@ from mms_msg.sampling.pattern.meeting.state_based.transition_model import Markov
 
 
 logger = logging.getLogger('dataset_statistics_estimation')
-logger.setLevel(logging.INFO)
-if sys.stdout not in [handler.stream for handler in logger.handlers if type(handler) is logging.StreamHandler]:
-    logger.addHandler(logging.StreamHandler(sys.stdout))
 
 
 class MeetingStatisticsEstimatorMarkov:
@@ -91,14 +88,11 @@ class MeetingStatisticsEstimatorMarkov:
         silence_durations = []
         overlap_durations = []
 
-        n = 0
-
         num_speakers = 0
 
-        for sample in self._dataset:
+        for n, sample in enumerate(self._dataset):
             if n % 100 == 0:
                 logger.info(f'Processed samples: {n}')
-            n += 1
 
             # Depending on the usage of VAD data different keys are used
             if use_vad:
@@ -115,32 +109,30 @@ class MeetingStatisticsEstimatorMarkov:
             last_foreground_end = speaker_ends[0]
             last_foreground_speaker = speaker_ids[0]
 
-            for i in range(len(offsets) - 1):
+            for speaker_id, offset, speaker_end in list(zip(speaker_ids, offsets, speaker_ends))[1:]:
                 state_occurence_counter[current_state] += 1
                 # Turn-hold
-                if last_foreground_speaker == speaker_ids[i + 1]:
-                    if offsets[i + 1] - last_foreground_end < 0:
-                        input()
+                if last_foreground_speaker == speaker_id:
                     new_state = 0
-                    silence_durations.append(offsets[i + 1] - last_foreground_end)
+                    silence_durations.append(offset - last_foreground_end)
 
                 # Turn-switch
-                elif last_foreground_end < offsets[i + 1]:
+                elif last_foreground_end < offset:
                     new_state = 1
-                    silence_durations.append(offsets[i + 1] - last_foreground_end)
+                    silence_durations.append(offset - last_foreground_end)
 
                 # Overlap
-                elif last_foreground_end < speaker_ends[i + 1]:
+                elif last_foreground_end < speaker_end:
                     new_state = 2
-                    overlap_durations.append(last_foreground_end - offsets[i + 1])
+                    overlap_durations.append(last_foreground_end - offset)
                 # Backchannel
                 else:
                     new_state = 3
 
                 # Adjust foreground information, in all states except backchannel
-                if new_state in {0, 1, 2}:
-                    last_foreground_end = speaker_ends[i + 1]
-                    last_foreground_speaker = speaker_ids[i + 1]
+                if new_state in (0, 1, 2):
+                    last_foreground_end = speaker_end
+                    last_foreground_speaker = speaker_id
 
                 state_transition_counter[current_state][new_state] += 1
 

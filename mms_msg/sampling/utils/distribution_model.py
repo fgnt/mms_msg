@@ -220,7 +220,7 @@ class DistributionModel:
         ret += " Minimum value:" + str(self.min_value)
         ret += " Maximum value:" + str(self.max_value)
         ret += " Expected value:" + str(self.expected_value)
-        ret += " Standard derivation:" + str(self.standard_deviation)
+        ret += " Standard deviation:" + str(self.standard_deviation)
         ret += " Variance:" + str(self.variance)
         return ret
 
@@ -266,54 +266,48 @@ class DistributionModel:
         return fig, ax
 
     @staticmethod
-    def to_dict(obj: DistributionModel) -> dict:
-        """
-        Static method that converts a Distribution model into a dictionary.
+    def to_json(obj: DistributionModel) -> str:
+        """ Static method that serializes a DistributionModel into a json string.
 
         Args:
-            obj: DistributionModel which should be converted to a dictionary
+            obj: DistributionModel which should be serialized
 
-        Returns: Dictionary which contains the data of the given object
+        Returns: Json string which contains the data of the given object
         """
-        return obj.__dict__
+        return json.dumps(obj, default=lambda o: o.__dict__)
 
     @staticmethod
-    def from_dict(dct: dict) -> DistributionModel:
-        """ Static method that creates a DistributionModel from a given dictionary.
-        Args:
-            dct: Dictionary that contains the data required for the DistributionModel
-                 Additional key that are required:
-                    __module__: obj.__module__
-                    __class__: obj.__class__.__name__
+    def from_json(json_string: str) -> DistributionModel:
+        """ Static method that creates a DistributionModel from a given json string.
 
-        Returns: DistributionModel constructed from the data of the dictionary.
+        Args:
+            json_string: Json string that contains the data required for the DistributionModel
+
+        Returns: DistributionModel constructed from the data of the json string.
         """
-        module = sys.modules[dct.pop('__module__')]
-        class_ = getattr(module, dct.pop('__class__'))
-        obj = class_.__new__(class_)
-        obj.__dict__ = dct
+        obj = DistributionModel()
+        data = json.loads(json_string)
+        for k, v in data.items():
+            obj.__dict__[k] = v
         return obj
 
     @staticmethod
     def save(obj: DistributionModel, filepath: Optional[str] = 'distribution_model.json') -> None:
         """ Static method that saves the given DistributionModel to a file belonging to the given filepath.
-        When the file exists its contests will be overwritten. When it not exists it is created.
-        The used dataformat is json, so a .json file extension is recommended.
+            When the file exists its contests will be overwritten. When it not exists it is created.
+            The used dataformat is json, so a .json file extension is recommended.
 
-        Args:
-            obj: DistributionModel which should be saved
-            filepath: Path to the file where the model should be saved.
+            Args:
+                obj: DistributionModel which should be saved
+                filepath: Path to the file where the model should be saved.
         """
         with open(filepath, 'w+') as file:
-            try:
-                json_string = json.dumps(obj, default=_default_json)
-                file.write(json_string)
-            finally:
-                file.close()
+            json_string = DistributionModel.to_json(obj)
+            file.write(json_string)
 
     @staticmethod
     def load(filepath: Optional[str] = 'distribution_model.json') -> DistributionModel:
-        """Static method that loads a Distribution Model from file belonging to the given filepath.
+        """Static method that loads a DistributionModel from file belonging to the given filepath.
 
         Args:
             filepath: Path to the file where the model is saved.
@@ -321,11 +315,8 @@ class DistributionModel:
         Returns: DistributionModel constructed from the data of the given file.
         """
         with open(filepath, 'r') as file:
-            try:
-                json_string = file.read()
-                obj = DistributionModel.from_dict(json.loads(json_string))
-            finally:
-                file.close()
+            json_string = file.read()
+            obj = DistributionModel.from_json(json_string)
             return obj
 
 
@@ -357,23 +348,3 @@ def statistical_distance(d1: DistributionModel, d2: DistributionModel) -> float:
         ret += abs(c1[val]-c2[val])
 
     return 0.5*ret
-
-
-def _default_json(obj) -> dict:
-    """ Internal function, that is used to serialize objects,
-    which utilize numpy arrays and/or classes with inheritance as attributes.
-    This function is used during the json serialization as value for the 'default' parameter.
-
-    Args:
-        obj: Object that should be serialized
-
-    Returns: Dictionary that contains the necessary information for the json serializer
-    """
-    if type(obj) is np.ndarray:
-        return {"__class__": "np.ndarray", "__data__": obj.tolist()}
-    obj_dict = {"__class__": obj.__class__.__name__, "__module__": obj.__module__}
-    if hasattr(obj, 'to_dict') and callable(obj.to_dict):
-        obj_dict.update(type(obj).to_dict(obj))
-    else:
-        obj_dict.update(obj.__dict__)
-    return obj_dict

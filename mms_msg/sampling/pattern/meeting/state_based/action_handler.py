@@ -103,16 +103,20 @@ class DistributionActionHandler(ActionHandler):
     When the offset is calculated from these intermediate values then VAD data is also taken into account,
     when available.
 
-    Important! Due to the internal selection of the samples the distribution of the offsets depends
-    on the given input dataset. When using the statistics from a dataset are used and then this dataset is used as
-    input dataset the mean of the resulting overlap distribution is typically smaller than the original.
-    This effect increases when the process of sampling and generation is done multiple times.
-    Thus, this is not recommended.
+    Important! When selecting a fitting source for the OV action, the overlap is computed after a source is selected.
+    Due to this the resulting overlap distribution depends heavily on the length of the samples
+    in the given input dataset.
+    This also leads to the effect, that when using an input dataset with similar mean sample length,
+    the resulting overlap distribution is skewed toward smaller values.
+    When now the processes of sampling and generation is done recursively multiple times with the same input dataset
+    (generate dataset with action handler, use this as source dataset, repeat,...),
+    the resulting overlap distribution gets smaller, with each iteration. Thus, this is not recommended.
+
 
     Properties:
         overlap_sampler: Used sampler for the overlap
         silence_sampler: Used sampler for the silence
-        backchannel_start_sampler: Used sampler for offset off the backchannel source
+        backchannel_start_sampler: Used sampler for offset of the backchannel source
         border_margin:  Used as minimal overlap during the OV action and minimal spacing
             of the backchannel source from the borders of the foreground source.
         use_vad: Is VAD data present in the given datasets and should this data be used for determining sources
@@ -150,7 +154,7 @@ class DistributionActionHandler(ActionHandler):
         self._scenario_ids = None
         self._example_id = None
 
-        self._last_foreground_speaker = None
+        self._last_foreground_scenario = None
 
         self._base_examples = None
         self._grouped_datasets = None
@@ -176,7 +180,7 @@ class DistributionActionHandler(ActionHandler):
         # Adding the first speaker
         current_source = copy.deepcopy(base_examples[scenario_id_index])
         offset = 0
-        self._last_foreground_speaker = scenario_ids[scenario_id_index]
+        self._last_foreground_scenario = scenario_ids[scenario_id_index]
 
         return True, current_source, offset, None
 
@@ -236,13 +240,13 @@ class DistributionActionHandler(ActionHandler):
                        segment_idx: int) -> Dict[str, Any]:
         """
         Internal function that samples a source from the current scenario from the current dataset using
-        the random round-robin method. The archive consistency for multiple executions all previously
-        sampled examples and the index of the current exampled are used as seed for the random number generator.
+        the random round-robin method. To achieve consistency for multiple executions all previously
+        sampled examples and the index of the current examples are used as seed for the random number generator.
 
         Args:
             current_scenario: Scenario from which the source should be sampled
             current_dataset: Dataset from which the source should be sampled
-            examples: List of previously sampled sources (used as seed for rng)
+            examples: List of previously sampled sources
             segment_idx: Index of the currently sampled source (used as seed for rng)
 
         Returns: Dictionary which represents the sampled source
@@ -276,7 +280,7 @@ class DistributionActionHandler(ActionHandler):
 
         current_source = self._sample_source(current_scenario, current_dataset, examples, segment_idx)
         silence = self.silence_sampler(get_rng(self._example_id, segment_idx, 'silence'))
-        self._last_foreground_speaker = current_scenario
+        self._last_foreground_scenario = current_scenario
         offset = max([x['speaker_end'][source_key] for x in examples]) + silence
 
         return current_source, offset
@@ -303,7 +307,7 @@ class DistributionActionHandler(ActionHandler):
         overlap = self.overlap_sampler(examples, current_source,
                                        rng=get_rng(self._example_id, segment_idx, 'overlap'),
                                        use_vad=self.use_vad)
-        self._last_foreground_speaker = current_scenario
+        self._last_foreground_scenario = current_scenario
 
         offset = max([x['speaker_end'][source_key] for x in examples]) - overlap
 
@@ -328,15 +332,17 @@ class DistributionActionHandler(ActionHandler):
         Returns: Tuple of the sampled source and the corresponding offset
         """
 
-        last_foreground_example = list(filter(lambda x: x['speaker_id'] == self._last_foreground_speaker, examples))[-1]
+        last_foreground_example = list(filter(lambda x: x['scenario'] == self._last_foreground_scenario, examples))[-1]
 
-        backchannel_speaker_ends = [x['speaker_end'] for x in
-                                    list(filter(lambda x: not x['speaker_id'] == self._last_foreground_speaker,
-                                                examples))]
+        backchannel_speaker_ends = [
+            x['speaker_end'][source_key]
+            for x in examples
+            if x['scenario'] != self._last_foreground_scenario
+        ]
 
         foreground_length = last_foreground_example['num_samples'][source_key]
-        free_backchannel_length = last_foreground_example['speaker_end'][source_key] - max(
-            [x[source_key] for x in backchannel_speaker_ends] + [0])
+        free_backchannel_length = (last_foreground_example['speaker_end'][source_key]
+                                   - max(backchannel_speaker_ends + [0]))
 
         max_allowed_length = min(foreground_length, free_backchannel_length) - 2 * self.bc_border_margin
 
@@ -346,8 +352,8 @@ class DistributionActionHandler(ActionHandler):
         current_source = copy.deepcopy(current_source)
 
         if current_source is not None:
-            min_possible_start_offset = max(max([x[source_key] for x in backchannel_speaker_ends] + [0]),
-                                            last_foreground_example['offset'][source_key]) \
+            min_possible_start_offset = max(backchannel_speaker_ends + [0] +
+                                            [last_foreground_example['offset'][source_key]]) \
                                         + self.bc_border_margin
             max_possible_start_offset = last_foreground_example['speaker_end'][source_key] - \
                 current_source['num_samples'][source_key2] - self.bc_border_margin
@@ -373,7 +379,7 @@ class DistributionActionHandler(ActionHandler):
 
     @property
     def last_foreground_speaker(self) -> str:
-        return self._last_foreground_speaker
+        return self._last_foreground_scenario
 
     @property
     def grouped_datasets(self) -> Dict[str, Union[Dict, Dataset]]:
@@ -400,12 +406,13 @@ def rejection_sampling(rng: np.random.Generator, current_scenario: str, current_
     Returns: source: when its fitting, None: when no fitting source is found
     """
 
-    for tries in range(max_tries):
+    sequence = [x['example_id'] for x in examples if x['scenario'] == current_scenario]
+    rejected_sources = []
+
+    for _ in range(max_tries):
         current_source_id = sequence_sampling.sample_random_round_robin(
             current_dataset[current_scenario].keys(),
-            sequence=[
-                x['example_id'] for x in examples
-                if x['scenario'] == current_scenario],
+            sequence=sequence + rejected_sources,
             rng=rng
         )
         current_source = copy.deepcopy(current_dataset[current_scenario][current_source_id])
@@ -413,5 +420,8 @@ def rejection_sampling(rng: np.random.Generator, current_scenario: str, current_
         if current_source['num_samples']['observation'] >= min_length and (
                 max_length is None or current_source['num_samples']['observation'] <= max_length):
             return current_source
+        else:
+            rejected_sources.append(current_source['example_id'])
+
     # When no fitting source is found None is returned
     return None

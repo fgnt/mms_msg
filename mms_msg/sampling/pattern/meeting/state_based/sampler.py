@@ -90,6 +90,7 @@ class UniformSilenceSampler(SilenceSampler):
         return rng.integers(minimum_value, maximum_value)
 
 
+@dataclass
 class DistributionSilenceSampler(SilenceSampler):
     """
     Generates samples using a given distribution.
@@ -98,40 +99,26 @@ class DistributionSilenceSampler(SilenceSampler):
     but then the bounds are not enforced. When the sampling fails a ValueError is raised.
     Properties:
         distribution: Distribution form which the silence values are sampled.
-        minimum_value: Minimum value that can be sampled
-        maximum_value: Maximum value that can be sampled
+        minimum_value: Minimum value that can be sampled, when not given then it depends on the given distribution
+        maximum_value: Maximum value that can be sampled, when not given then it depends on the given distribution
     """
 
-    def __init__(self, distribution, minimum_value=None, maximum_value=None):
-        """
-        Initializes the sampler with a given distribution and optional maximum and minimum values.
+    distribution: DistributionModel
+    minimum_value: Optional[int] = None
+    maximum_value: Optional[int] = None
 
-        Args:
-            distribution: Distribution form which the silence values are sampled.
-            minimum_value: (optional) Hard minimum value that can be sampled, when not set this is influenced by the
-                underlying distribution model.
-            maximum_value: (optional) Hard maximum value that can be sampled, when not set this is influenced by the
-                underlying distribution model.
-        """
-        if minimum_value is None:
-            self.minimum_value = distribution.min_value
-        else:
-            self.minimum_value = minimum_value
-
-        if maximum_value is None:
-            self.maximum_value = distribution.max_value
-        else:
-            self.maximum_value = maximum_value
-
-        self.distribution = distribution
+    def __post_init__(self):
+        if self.minimum_value is None:
+            self.minimum_value = int(self.distribution.min_value)
+        if self.maximum_value is None:
+            self.maximum_value = int(self.distribution.max_value)
 
     def sample_silence(self, rng: np.random.random = np.random.default_rng(), minimum_value: Optional[int] = None,
                        maximum_value: Optional[int] = None) -> int:
         return self.distribution.sample_value(rng, minimum_value=minimum_value, maximum_value=maximum_value)
 
 
-@dataclass(frozen=False)
-class OverlapSampler(pt.Configurable, ABC):
+class OverlapSampler(ABC):
     """ Abstract class that allows to construct an Overlap sampler, which is used to sample overlap values for the
     generation of a meeting. It is guaranteed that the given overlap values are valid and only a maximum number
     of speakers is active simultaneously, when the sampler is called with ().
@@ -163,7 +150,8 @@ class OverlapSampler(pt.Configurable, ABC):
         Returns: Sampled overlap
         """
 
-        maximum_overlap = _get_valid_overlap_region(collate_fn(examples), self.max_concurrent_spk, current_source, use_vad)
+        maximum_overlap = _get_valid_overlap_region(collate_fn(examples), self.max_concurrent_spk, current_source,
+                                                    use_vad)
         examples = examples[:]
 
         if use_vad:
@@ -205,6 +193,7 @@ class OverlapSampler(pt.Configurable, ABC):
         raise NotImplementedError
 
 
+@dataclass
 class DistributionOverlapSampler(OverlapSampler):
     """
     Class which is used to sample overlap values for the generation of a meeting using a DistributionModel.
@@ -219,20 +208,10 @@ class DistributionOverlapSampler(OverlapSampler):
         hard_maximum_overlap: Hard maximum value for the overlap
     """
 
-    def __init__(self, max_concurrent_spk: int, distribution: DistributionModel, hard_minimum_overlap: int = 0,
-                 hard_maximum_overlap: int = 1000000):
-        """
-        Args:
-            max_concurrent_spk: Maximum number of concurrent active speakers.
-            distribution: DistributionModel from which the overlap should be sampled.
-            hard_minimum_overlap: Hard minimum value for the overlap
-            hard_maximum_overlap: Hard maximum value for the overlap
-        """
-
-        self.max_concurrent_spk = max_concurrent_spk
-        self.distribution = distribution
-        self.hard_minimum_overlap = hard_minimum_overlap
-        self.hard_maximum_overlap = hard_maximum_overlap
+    max_concurrent_spk: int
+    distribution: DistributionModel
+    hard_minimum_overlap: int = 0
+    hard_maximum_overlap: int = 1000000
 
     def _sample_overlap(self, minimum_overlap: int, maximum_overlap: int,
                         rng: np.random.random = np.random.default_rng(), examples: List[Dict] = None,

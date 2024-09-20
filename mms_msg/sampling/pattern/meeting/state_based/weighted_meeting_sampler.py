@@ -16,9 +16,6 @@ from mms_msg.sampling.pattern.meeting.state_based.transition_model import Speake
 from mms_msg.sampling.pattern.meeting.state_based.action_handler import ActionHandler
 
 logger = logging.getLogger('meeting_generation')
-logger.setLevel(logging.INFO)
-if sys.stdout not in [handler.stream for handler in logger.handlers if type(handler) is logging.StreamHandler]:
-    logger.addHandler(logging.StreamHandler(sys.stdout))
 
 
 class _WeightedMeetingSampler:
@@ -127,7 +124,7 @@ class _WeightedMeetingSampler:
 
     def _log_action(self, i: int, action: [Any], current_source: Dict[str, Any]) -> None:
         """
-        Internal function that logs the action and corresponding source. Logged keys of the source: speaker_id, offset,
+        Internal function that logs the action and corresponding source. Logged keys of the source: scenario, offset,
         speaker_end. When VAD is used the aligned source values are logged, otherwise the original_source is used.
 
         Args:
@@ -140,8 +137,8 @@ class _WeightedMeetingSampler:
         if self.use_vad:
             key = 'aligned_source'
 
-        logger.info("i: %s, action: %s, speaker_id: %s, offset: %s, speaker_end: %s", i, action,
-                    current_source['speaker_id'],
+        logger.info("i: %s, action: %s, scenario: %s, offset: %s, speaker_end: %s", i, action,
+                    current_source['scenario'],
                     current_source['offset'][key], current_source['speaker_end'][key])
 
     def _set_keys(self, source: Dict[str, Any], offset: int) -> None:
@@ -240,12 +237,12 @@ class _WeightedMeetingSampler:
                 logger.error("No valid action possible.")
 
         # Check if each speaker has at least one appearance
-        speakers = {speaker_example['speaker_id'] for speaker_example in examples}
+        scenarios = {scenario_example['scenario'] for scenario_example in examples}
 
-        if speakers != set(scenario_ids):
+        if scenarios != set(scenario_ids):
             logger.error(f'The speakers present in the meeting, do not correspond to those in the base examples.'
-                         f' Missing speakers: ' + str(set(scenario_ids).difference(speakers)).replace('set()', '{}') +
-                         f' Surplus speakers: ' + str(speakers.difference(set(scenario_ids))).replace('set()', '{}'))
+                         f' Missing scenarios: ' + str(set(scenario_ids).difference(scenarios)).replace('set()', '{}') +
+                         f' Surplus scenarios: ' + str(scenarios.difference(set(scenario_ids))).replace('set()', '{}'))
             valid = False
 
         # Generation not successful when the first state cannot be initialized, no valid action can be found
