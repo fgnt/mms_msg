@@ -224,23 +224,19 @@ class DistributionModel:
         ret += " Variance:" + str(self.variance)
         return ret
 
-    def plot(self, show: bool = False, fig=None, ax=None):
+    def plot(self, show: bool = False, ax=None):
         """
         Creates a plot of the distribution model using matplotlib and
         returns a figure and axes with the corresponding plot.
 
         Args:
             show: (optional) When set to True the figure is directly shown
-            fig: (optional) Figure on which a new axes with the plot is created.
-                Will be overwritten when ax is given.
-                When not given and also ax is not provided the function creates a new figure
-                with one axes and uses this for the plot.
             ax: (optional) axes on which the plot is created, when not provided
                 the function creates a new axes on the figure, when also the figure is not provided
                 then the function creates a new figure with one axes and uses this for the plot.
 
         Returns: Figure and axes with the plot of the distribution.
-                When an axis but no figure is given as input then the tuple (None,ax) is returned.
+                 When an axis is given as input then the tuple (None,ax) is returned.
         """
 
         import matplotlib.pyplot as plt
@@ -248,10 +244,10 @@ class DistributionModel:
         if self.n == 0:
             raise AssertionError("No samples has been added to the model. Plot is empty.")
 
-        if fig is None and ax is None:
+        fig = None
+
+        if ax is None:
             fig, ax = plt.subplots()
-        elif fig is not None:
-            ax = fig.add_axes()
 
         ax.hist(list(map(lambda x: x[0], self.distribution_prob)),
                 bins=int((self.max_value - self.min_value)/self.bin_size),
