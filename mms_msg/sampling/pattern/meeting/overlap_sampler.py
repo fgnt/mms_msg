@@ -5,7 +5,7 @@ from mms_msg.sampling.utils import collate_fn
 import padertorch as pt
 
 
-def _get_valid_overlap_region(examples, max_concurrent_spk, current_source):
+def _get_valid_overlap_region(examples, max_concurrent_spk, current_source, use_vad=False):
     """
     Compute maximum overlap that guarantees that no more than  max_concurrent_spk are active at the same time.
     Note: This function underestimates the maximal overlap to ensure regions sampled as silence or
@@ -13,11 +13,17 @@ def _get_valid_overlap_region(examples, max_concurrent_spk, current_source):
     Args:
         examples:
         max_concurrent_spk:
-
+        use_vad: (optional) When set to True the keys that represent the alignment of the vad data are
+            used to compute the valid overlap region.
     Returns:
 
     """
-    speaker_end = np.asarray(examples['offset']['original_source']) + np.asarray(examples['num_samples']['observation'])
+    if use_vad:
+        speaker_end = np.asarray(examples['offset']['aligned_source']) + np.asarray(
+            examples['num_samples']['aligned_source'])
+    else:
+        speaker_end = np.asarray(examples['offset']['original_source']) + np.asarray(
+            examples['num_samples']['observation'])
     speaker_id = examples['speaker_id']
 
     return get_allowed_max_overlap(speaker_end, speaker_id, max_concurrent_spk, current_source['speaker_id'])
